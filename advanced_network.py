@@ -3,7 +3,7 @@ import pandas as pd
 import pandapower as pp
 import pandapower.networks as nw
 import pandapower.plotting as plot
-from torch_geometric.data import HeteroData
+from utils.pandapower import build_costs, build_hetero_data
 from torch_geometric.nn import SAGEConv, to_hetero
 try:
     import seaborn
@@ -200,11 +200,11 @@ def build_advanced_network(net):
 
 
 
-
 #create an empty network 
 network = pp.create_empty_network()
 
 build_advanced_network(network)
+build_costs(network, [("ext_grid",0,10),("gen",0,10),("sgen",0,10),("sgen",1,10)])
 
 pp.runpp(network, calculate_voltage_angles=True, init="dc")
 print(network)
@@ -221,61 +221,7 @@ trafo3w_df =  pd.merge(network.trafo3w,network.res_trafo3w,"left",on=None,left_i
 impedance_df =  pd.merge(network.impedance,network.res_impedance,"left",on=None,left_index=True,right_index=True)
 xward_df =  pd.merge(network.xward,network.res_xward,"left",on=None,left_index=True,right_index=True)
 
-node_types = ["bus","load","sgen","gen","shunt","ext_grid","line","trafo","trafo3w","impedance","xward"]
-edges = {}
-dataframes = {}
 
-
-data = HeteroData()
-
-for node in node_types:
-    edges_ = []
-    edges_from = []
-    edges_to = []
-    edges_to2 = []
-    merged_df = pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
-    
-    data[node].x = [len(merged_df),len(merged_df.columns)]
-
-    if "from_bus" in merged_df.columns:
-        edges_from = merged_df["from_bus"].tolist()
-        merged_df.drop(columns=["from_bus"],inplace=True)
-        getattr(network,node).drop(columns=["from_bus"],inplace=True)
-
-        edges_to = merged_df["to_bus"].tolist()
-        merged_df.drop(columns=["to_bus"],inplace=True)
-        getattr(network,node).drop(columns=["to_bus"],inplace=True)
-
-        data['bus','to',node] = [2, len(edges_from)]
-        data[node,'to','bus'] = [2, len(edges_to)]
-
-    if "hv_bus" in merged_df.columns:
-        edges_from = merged_df["hv_bus"].tolist()
-        merged_df.drop(columns=["hv_bus"],inplace=True)
-        getattr(network,node).drop(columns=["hv_bus"],inplace=True)
-        data['bus','to',node] = [2, len(edges_from)]
-
-        edges_to = merged_df["lv_bus"].tolist()
-        merged_df.drop(columns=["lv_bus"],inplace=True)
-        getattr(network,node).drop(columns=["lv_bus"],inplace=True)
-        data[node,'to','bus'] = [2, len(edges_to)]
-
-    if "mv_bus" in merged_df.columns:
-        edges_to2 = merged_df["mv_bus"].tolist()
-        merged_df.drop(columns=["mv_bus"],inplace=True)
-        getattr(network,node).drop(columns=["mv_bus"],inplace=True)
-        data[node,'to','bus'] = [2, len(edges_to)+len(edges_to2)]
-
-    if "bus" in merged_df.columns:
-        edges_ = merged_df["bus"].tolist()
-        merged_df.drop(columns=["bus"],inplace=True)
-        getattr(network,node).drop(columns=["bus"],inplace=True)
-        data['bus','to',node] = [2, len(edges_)]
-
-    dataframes[node] = merged_df
-    edges[node] = [edges_, edges_from, edges_to, edges_to2]
-        
-
-    print(node, len(getattr(network,node).columns), len(merged_df.columns))
+data, edges, dataframes = build_hetero_data(network)
 
 print("done")
