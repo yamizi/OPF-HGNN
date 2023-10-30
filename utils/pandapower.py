@@ -34,8 +34,8 @@ class PandaPowerDataset(InMemoryDataset):
         self.data, self.slices = hetero_data, None
 
     @property
-    def num_classes(self) -> int:
-        return int(self._data['bus'].y.max()) + 1
+    def num_outputs(self) -> int:
+        return self._data["ext_grid"].y.shape[0]
 
 def build_torch_dataset(network):
     hetero_data, edges, dataframes= build_hetero_data(network)
@@ -71,31 +71,31 @@ def build_hetero_data(network, include_res=True, opf_as_y=True):
         if "from_bus" in merged_df.columns:
             edges_from = merged_df["from_bus"].tolist()
             merged_df.drop(columns=["from_bus"],inplace=True)
-            data['bus','to',node] = torch.Tensor([edges_from, merged_df.index.tolist()]).transpose(0,1)
+            data['bus','to',node].edge_index = torch.Tensor([edges_from, merged_df.index.tolist()]).transpose(0,1)
  
         if "to_bus" in merged_df.columns:
             edges_to = merged_df["to_bus"].tolist()
             merged_df.drop(columns=["to_bus"],inplace=True)
-            data[node,'to','bus'] = torch.Tensor([merged_df.index.tolist(),edges_to]).transpose(0,1)
+            data[node,'to','bus'].edge_index = torch.Tensor([merged_df.index.tolist(),edges_to]).transpose(0,1)
 
         if "hv_bus" in merged_df.columns:
             edges_from = merged_df["hv_bus"].tolist()
             merged_df.drop(columns=["hv_bus"],inplace=True)
-            data['bus','to',node] = torch.Tensor([edges_from, merged_df.index.tolist()]).transpose(0,1)
+            data['bus','to',node].edge_index = torch.Tensor([edges_from, merged_df.index.tolist()]).transpose(0,1)
 
             edges_to = merged_df["lv_bus"].tolist()
             merged_df.drop(columns=["lv_bus"],inplace=True)
-            data[node,'to','bus'] = torch.Tensor([merged_df.index.tolist(),edges_to]).transpose(0,1)
+            data[node,'to','bus'].edge_index = torch.Tensor([merged_df.index.tolist(),edges_to]).transpose(0,1)
 
         if "mv_bus" in merged_df.columns:
             edges_to2 = merged_df["mv_bus"].tolist()
             merged_df.drop(columns=["mv_bus"],inplace=True)
-            data[node,'to','bus'] = torch.Tensor([merged_df.index.tolist()+merged_df.index.tolist(),edges_to+edges_to2]).transpose(0,1)
+            data[node,'to','bus'].edge_index = torch.Tensor([merged_df.index.tolist()+merged_df.index.tolist(),edges_to+edges_to2]).transpose(0,1)
 
         if "bus" in merged_df.columns:
             edges_ = merged_df["bus"].tolist()
             merged_df.drop(columns=["bus"],inplace=True)
-            data['bus','to',node] = torch.Tensor([edges_, merged_df.index.tolist()]).transpose(0,1)
+            data['bus','to',node].edge_index = torch.Tensor([edges_, merged_df.index.tolist()]).transpose(0,1)
 
         dataframes[node] = merged_df
         edges[node] = [edges_, edges_from, edges_to, edges_to2]
