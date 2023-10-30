@@ -17,7 +17,19 @@ def build_costs(net, costs):
      #net.sgen["cost"] = 0
 
      for cost in costs:
-        pp.create_poly_cost(net, cost[1], cost[0], cp1_eur_per_mw=cost[2], check=False)
+        et, index, prices = cost
+        
+        for i, p in prices.items():
+            if p is None:
+                prices[i] = 0
+         
+        found = net.poly_cost[(net.poly_cost.element==index) & (net.poly_cost.et==et)]
+        if len(net.poly_cost) and len(found)>0:
+            print("upadating cost of ",et,index,"to",prices)
+            net.poly_cost.loc[found.index,list(prices.keys())] = list(prices.values())
+        else:
+            print("setting new cost of ",et,index,"to",prices)
+            pp.create_poly_cost(net, index, et, check=False, **prices)
         #getattr(net,cost[0]).at[cost[1],'cost']=cost[2]
 
 
@@ -46,12 +58,10 @@ class PandaPowerDataset(InMemoryDataset):
     def output_nodes(self) -> [str]:
         return [e for e in ["ext_grid","sgen","gen"] if hasattr(self._data[e],"y")]
 
-def build_torch_dataset(network):
-    hetero_data, edges, dataframes= build_hetero_data(network)
-
 def build_hetero_data(network, include_res=True, opf_as_y=True):
      
     node_types = ["bus","load","sgen","gen","shunt","ext_grid","line","trafo","trafo3w","impedance","xward"]
+    costs = network.poly_cost
     data = HeteroData()
     edges = {}
     dataframes = {}
@@ -75,6 +85,9 @@ def build_hetero_data(network, include_res=True, opf_as_y=True):
                     # y = ["p_mw","q_mvar", "va_degree"]
             pf = getattr(network,"res_"+node)[y]
             data[node].y =torch.Tensor(pf.values.tolist())
+
+            node_cost = costs[costs["et"]==node]
+            merged_df = pd.merge(merged_df,node_cost,how="left",right_on="element", left_index=True).drop(columns=["et"])
 
         merged_df.drop(columns=["name"],inplace=True)   
         scaler = StandardScaler()
@@ -114,6 +127,6 @@ def build_hetero_data(network, include_res=True, opf_as_y=True):
         edges[node] = [edges_, edges_from, edges_to, edges_to2]
             
 
-        print(node, len(getattr(network,node).columns), len(merged_df.columns))
+        #node, len(getattr(network,node).columns), len(merged_df.columns))
 
     return data, edges, dataframes, scalers
