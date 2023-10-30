@@ -14,6 +14,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from torch_geometric.utils import train_test_split_edges
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--use-sparse-tensor', type=int,default=0)
@@ -57,12 +58,18 @@ class GAT(torch.nn.Module):
         return x
 
 
-def train(model, optimizer, data):
+def train_step(model, optimizer, data, mask_node="paper", feature_node="paper"):
     model.train()
     optimizer.zero_grad()
     out = model(data.x_dict, data.edge_index_dict)
-    mask = data['paper'].train_mask
-    loss = F.cross_entropy(out['paper'][mask], data['paper'].y[mask])
+    
+    label = data[feature_node].y
+    output = out[feature_node]
+    if mask_node is not None:
+        mask = data[mask_node].train_mask
+        label = label[mask]
+        output = output[mask]
+    loss = F.cross_entropy(label, output)
     loss.backward()
     optimizer.step()
     return out, float(loss)
@@ -117,7 +124,7 @@ def main():
     #print("one step train loss", l)
     for epoch in range(1, 21):
         print("multistep train epoch",epoch)
-        out, loss = train(model,optimizer,data)
+        out, loss = train_(model,optimizer,data)
         print("train loss",float(loss))
 
         model.eval()
