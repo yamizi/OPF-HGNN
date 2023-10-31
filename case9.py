@@ -18,8 +18,10 @@ from pandapower.plotting import simple_plot
 #simple_plot(network, plot_loads=True)
 
 def run_case(case_name="case9", nb_graphs = 64, save_path="./output"):
-    split_index = int(nb_graphs*3/4)
+    
     graphs, network, save_path = build_dataset(case_name,nbsamples=nb_graphs,save_dataframes=save_path)
+    print("valid graphs {}/{}".format(len(graphs),nb_graphs))
+    split_index = int(len(graphs)*3/4)
 
     graph_y = graphs[0]
     data = graph_y[0]
@@ -86,7 +88,7 @@ def run_case(case_name="case9", nb_graphs = 64, save_path="./output"):
     plt.cla()
     plt.clf()
 
-run_case(case_name="case9", nb_graphs = 64)
-run_case(case_name="case14", nb_graphs = 64)
-run_case(case_name="case118", nb_graphs = 64)
+#run_case(case_name="case9", nb_graphs = 64)
+#run_case(case_name="case14", nb_graphs = 64)
+#run_case(case_name="case118", nb_graphs = 64)
 run_case(case_name="case300", nb_graphs = 64)
