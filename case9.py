@@ -4,59 +4,23 @@ from matplotlib import pyplot as plt
 import sys
 sys.path.append("../")
 
-from utils.pandapower import PandaPowerDataset, build_costs
+from utils.pandapower import build_dataset
 import pandapower as pp
 from torch_geometric.nn import to_hetero
 
-import torch_geometric.transforms as T
 from torch_geometric.loader import NeighborLoader, DataLoader
 import torch
-import torch.nn.functional as F
 from utils.base_gnn import GNN
-from utils.train import train_step
-
+from utils.train import train_step, eval_step
+from matplotlib import pyplot as plt
 
 from pandapower.plotting import simple_plot
 #simple_plot(network, plot_loads=True)
 
 
-def build_dataset(nbsamples=20, dataset_type="y_no_OPF"):
-    print("building dataset with {nbsamples} variants")
-    network = pp.networks.case9()
-    graph = PandaPowerDataset(network)
-    
-    transforms = [T.ToUndirected(merge=True)]
-    graphs = []
-
-    if nbsamples==0:
-        pp.runopp(network, delta=1e-16)
-        graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms))
-        return [graph_y]
-    
-    for _ in range(nbsamples):
-        costs = [("ext_grid",0,{"cp1_eur_per_mw":np.random.randint(10,100)}),
-                          ("gen",0,{"cp1_eur_per_mw":np.random.randint(10,100)})
-                        ,("gen",1,{"cp1_eur_per_mw":np.random.randint(10,100)})]
-        build_costs(network,costs )
-        
-        pp.runopp(network, delta=1e-16)
-
-        if dataset_type=="y_no_OPF":
-            graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms))
-        elif dataset_type=="y_OPF":
-            graph_y = PandaPowerDataset(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms))
-        if dataset_type=="no_y_OPF":
-            graph_y = PandaPowerDataset(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
-                            transform=T.Compose(transforms))
-            
-        graphs.append(PandaPowerDataset(network,preprocess='metapath2vec'))
-   
-    return graphs, network
-
-graphs, network = build_dataset(5)
+nb_graphs = 50
+split_index = int(nb_graphs*3/4)
+graphs, network = build_dataset(nbsamples=nb_graphs)
 
 graph_y = graphs[0]
 data = graph_y[0]
@@ -72,14 +36,35 @@ for a in range(1,10):
     out, loss = train_step(model, optimizer,data,None,"gen",torch.nn.L1Loss())
     print(loss)
 
+train_loader = DataLoader([g[0] for g in graphs[:split_index]], batch_size=5)
+val_loader = DataLoader([g[0] for g in graphs[split_index:]], batch_size=5)
+train_losses = []
+val_losses = []
 
-loader = DataLoader([g[0] for g in graphs], batch_size=5)
-for epoch in range(1,100):
-    epoch_loss = 0
-    for batch in loader:
-        print("batch train epoch",epoch, batch)
+
+for epoch in range(1,200):
+    train_loss = 0
+    print("epoch",epoch)
+    for batch in train_loader:
         out, loss = train_step(model, optimizer,batch,None,"gen",torch.nn.L1Loss())
-        epoch_loss += loss
+        train_loss += loss
 
-    epoch_loss /= len(loader)
-    print("epoch loss",epoch_loss)
+    train_loss /= len(train_loader)
+    print("training loss",train_loss)
+    train_losses.append(train_loss)
+
+    val_loss = 0
+    for batch in val_loader:
+        out, loss = eval_step(model, batch,None,"gen",torch.nn.L1Loss())
+        val_loss += loss
+
+    val_loss /= len(val_loader)
+    print("validation loss",val_loss)
+    val_losses.append(val_loss)
+
+plt.plot(train_losses, label="train loss")
+plt.plot(val_losses, label="validation loss")
+plt.xlabel("training epoch")
+plt.ylabel("L1 error")
+plt.title('Learning p_mw and q_mvar for generators on Case9 (2 gen + ext_src)')
+plt.show()

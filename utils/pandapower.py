@@ -10,6 +10,59 @@ import torch
 import pandas as pd
 from copy import deepcopy
 from sklearn.preprocessing import StandardScaler
+import torch_geometric.transforms as T
+import json
+import uuid
+import os
+
+def build_dataset(nbsamples=20, dataset_type="y_no_OPF", case="case9", save_dataframes="./data", opf=True):
+    print("building dataset with {nbsamples} variants")
+    case_method = getattr(pp.networks, case)
+    network = case_method()
+    graph = PandaPowerDataset(network)
+    uniqueid = uuid.uuid4()
+    if save_dataframes is not None:
+        path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
+        os.makedirs(path, exist_ok=True)
+        graph.export(path+"/raw")
+
+    transforms = [T.ToUndirected(merge=True)]
+    graphs = []
+
+    if nbsamples==0:
+        pp.runopp(network, delta=1e-16)
+        graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
+                            transform=T.Compose(transforms))
+        return [graph_y]
+    
+    for sample_id in range(nbsamples):
+        costs = [("ext_grid",0,{"cp1_eur_per_mw":np.random.randint(10,100)}),
+                          ("gen",0,{"cp1_eur_per_mw":np.random.randint(10,100)})
+                        ,("gen",1,{"cp1_eur_per_mw":np.random.randint(10,100)})]
+        build_costs(network,costs )
+        
+        if opf:
+            pp.runopp(network, delta=1e-16)
+        else:
+            pp.runpp(network, delta=1e-16)
+
+        if dataset_type=="y_no_OPF":
+            graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
+                            transform=T.Compose(transforms))
+        elif dataset_type=="y_OPF":
+            graph_y = PandaPowerDataset(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
+                            transform=T.Compose(transforms))
+        if dataset_type=="no_y_OPF":
+            graph_y = PandaPowerDataset(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
+                            transform=T.Compose(transforms))
+            
+        if save_dataframes is not None:
+            path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
+            graph.export(path+"/op_{}".format(sample_id))
+
+        graphs.append(PandaPowerDataset(network,preprocess='metapath2vec'))
+   
+    return graphs, network
 
 def build_costs(net, costs):
      #net.gen["cost"] = 0
@@ -32,6 +85,12 @@ def build_costs(net, costs):
             pp.create_poly_cost(net, index, et, check=False, **prices)
         #getattr(net,cost[0]).at[cost[1],'cost']=cost[2]
 
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj, 'to_json'):
+            return obj.to_json(orient='records')
+        return json.JSONEncoder.default(self, obj)
 
 class PandaPowerDataset(InMemoryDataset):
     def __init__(self, network: pandapowerNet, preprocess: Optional[str] = None,
@@ -57,6 +116,19 @@ class PandaPowerDataset(InMemoryDataset):
     @property
     def output_nodes(self) -> [str]:
         return [e for e in ["ext_grid","sgen","gen"] if hasattr(self._data[e],"y")]
+    
+    def export(self,filename="export",format="json"):
+
+        if format=="csv":
+            for (sheetname, sheet) in self.dataframes.items():
+                sheet.to_csv(filename+"_"+sheetname+".csv")
+        elif format=="json":
+            with open(filename+"."+format,"w") as f:
+                json.dump(self.dataframes, f, cls=JSONEncoder)
+        elif format=="xlsx":
+            with open(filename+"."+format,"wb") as f:
+                for (sheetname, sheet) in self.dataframes.items():
+                    sheet.to_excel(f,sheet_name=sheetname)
 
 def build_hetero_data(network, include_res=True, opf_as_y=True):
      
@@ -87,7 +159,8 @@ def build_hetero_data(network, include_res=True, opf_as_y=True):
             data[node].y =torch.Tensor(pf.values.tolist())
 
             node_cost = costs[costs["et"]==node]
-            merged_df = pd.merge(merged_df,node_cost,how="left",right_on="element", left_index=True).drop(columns=["et"])
+            node_cost.index = node_cost.element
+            pd.merge(merged_df,node_cost,how="left",right_index=True, left_index=True).drop(columns=["et","element"])
 
         merged_df.drop(columns=["name"],inplace=True)   
         scaler = StandardScaler()
