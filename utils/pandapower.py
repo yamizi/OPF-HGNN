@@ -15,7 +15,18 @@ import json
 import uuid
 import os
 
-def build_dataset(nbsamples=20, dataset_type="y_no_OPF", case="case9", save_dataframes="./data", opf=True):
+
+def mutate_costs(network, min_cost=10, max_cost=100):
+    costs_grids = [("ext_grid",i,{"cp1_eur_per_mw":np.random.randint(min_cost,max_cost)}) for i in range(len(network.ext_grid)) ]
+    costs_gen = [("gen",i,{"cp1_eur_per_mw":np.random.randint(min_cost,max_cost)}) for i in range(len(network.gen)) ]
+    costs_sgen = [("sgen",i,{"cp1_eur_per_mw":np.random.randint(min_cost,max_cost)}) for i in range(len(network.sgen)) ]
+
+    costs = costs_grids + costs_gen + costs_sgen
+    build_costs(network,costs )
+
+    return network
+def build_dataset(nbsamples=20, dataset_type="y_no_OPF", case="case9", save_dataframes="./data", opf=True,
+                  mutations = ["cost"]):
     print("building dataset with {nbsamples} variants")
     case_method = getattr(pp.networks, case)
     network = case_method()
@@ -36,11 +47,10 @@ def build_dataset(nbsamples=20, dataset_type="y_no_OPF", case="case9", save_data
         return [graph_y]
     
     for sample_id in range(nbsamples):
-        costs = [("ext_grid",0,{"cp1_eur_per_mw":np.random.randint(10,100)}),
-                          ("gen",0,{"cp1_eur_per_mw":np.random.randint(10,100)})
-                        ,("gen",1,{"cp1_eur_per_mw":np.random.randint(10,100)})]
-        build_costs(network,costs )
         
+        if "cost" in mutations:
+            network = mutate_costs(network)
+
         if opf:
             pp.runopp(network, delta=1e-16)
         else:
@@ -84,7 +94,6 @@ def build_costs(net, costs):
             print("setting new cost of ",et,index,"to",prices)
             pp.create_poly_cost(net, index, et, check=False, **prices)
         #getattr(net,cost[0]).at[cost[1],'cost']=cost[2]
-
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
