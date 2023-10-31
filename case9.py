@@ -66,6 +66,10 @@ def run_case(case_name="case9", nb_graphs = 64, save_path="./output"):
         val_loss_ext_grid /= len(val_loader)
         val_losses_ext_grid.append(val_loss_ext_grid)
 
+
+    fig = plt.figure()
+    plt.figure().clear()
+
     plt.plot(train_losses, label="train loss")
     plt.plot(val_losses, label="validation loss")
     plt.plot(val_losses_gen, label="validation loss generators")
@@ -78,4 +82,11 @@ def run_case(case_name="case9", nb_graphs = 64, save_path="./output"):
     plt.savefig(save_path+"/losses.png")
     print("over")
 
+    plt.close()
+    plt.cla()
+    plt.clf()
+
 run_case(case_name="case9", nb_graphs = 64)
+run_case(case_name="case14", nb_graphs = 64)
+run_case(case_name="case118", nb_graphs = 64)
+run_case(case_name="case300", nb_graphs = 64)
