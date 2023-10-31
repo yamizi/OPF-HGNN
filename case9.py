@@ -18,7 +18,7 @@ from pandapower.plotting import simple_plot
 #simple_plot(network, plot_loads=True)
 
 
-nb_graphs = 50
+nb_graphs = 64
 split_index = int(nb_graphs*3/4)
 graphs, network = build_dataset(nbsamples=nb_graphs)
 
@@ -33,20 +33,21 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
 for a in range(1,10):
     print("single graph multistep train epoch",a)
-    out, loss = train_step(model, optimizer,data,None,"gen",torch.nn.L1Loss())
+    out, loss, losses = train_step(model, optimizer,data,None,"gen",torch.nn.L1Loss())
     print(loss)
 
 train_loader = DataLoader([g[0] for g in graphs[:split_index]], batch_size=5)
 val_loader = DataLoader([g[0] for g in graphs[split_index:]], batch_size=5)
 train_losses = []
 val_losses = []
-
+val_losses_gen = []
+val_losses_ext_grid  = []
 
 for epoch in range(1,200):
     train_loss = 0
     print("epoch",epoch)
     for batch in train_loader:
-        out, loss = train_step(model, optimizer,batch,None,"gen",torch.nn.L1Loss())
+        out, loss, losses = train_step(model, optimizer,batch,None,["gen","ext_grid"],torch.nn.L1Loss())
         train_loss += loss
 
     train_loss /= len(train_loader)
@@ -54,17 +55,33 @@ for epoch in range(1,200):
     train_losses.append(train_loss)
 
     val_loss = 0
+    val_loss_gen = 0
+    val_loss_ext_grid = 0
+    
     for batch in val_loader:
-        out, loss = eval_step(model, batch,None,"gen",torch.nn.L1Loss())
+        out, loss, losses = eval_step(model, batch,None,["gen","ext_grid"],torch.nn.L1Loss())
         val_loss += loss
+        val_loss_gen += losses[0]
+        val_loss_ext_grid += losses[1]
 
     val_loss /= len(val_loader)
     print("validation loss",val_loss)
     val_losses.append(val_loss)
+    
+    val_loss_gen /= len(val_loader)
+    val_losses_gen.append(val_loss_gen)
+
+    val_loss_ext_grid /= len(val_loader)
+    val_losses_ext_grid.append(val_loss_ext_grid)
 
 plt.plot(train_losses, label="train loss")
 plt.plot(val_losses, label="validation loss")
+plt.plot(val_losses_gen, label="validation loss generators")
+plt.plot(val_losses_ext_grid, label="validation loss ext_grid")
+
 plt.xlabel("training epoch")
 plt.ylabel("L1 error")
 plt.title('Learning p_mw and q_mvar for generators on Case9 (2 gen + ext_src)')
+plt.legend()
 plt.show()
+print("over")
