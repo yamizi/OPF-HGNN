@@ -69,13 +69,13 @@ def mutate_costs(network, min_cost=10, max_cost=100, clip=False, mutation_rate=0
 
     return network
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_dataframes="./data", opf=True,
-                  mutations = ["cost", "load"], mutation_rate=0.7):
+                  mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None):
     print("building dataset with {nbsamples} variants")
     case_method = getattr(pp.networks, case)
     original_network = case_method()
     network = deepcopy(original_network)
     graph = PandaPowerDataset(network)
-    uniqueid = uuid.uuid4()
+    uniqueid = uuid.uuid4() if uniqueid is None else uniqueid
     path = "."
 
     if save_dataframes is not None:
@@ -127,7 +127,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
 
         graphs.append(PandaPowerDataset(network,preprocess='metapath2vec'))
    
-    return graphs, network, path
+    return graphs, network, path, uniqueid
 
 def build_costs(net, costs):
 
