@@ -2,16 +2,23 @@ import torch
 import pandapower as pp
 
 def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
-    valid = True
+    valid_min_max = True
     for node in y_nodes:
         values = output_nodes.get(node)
+        valid_max = values[i*nb_gens[node]:(i+1)*nb_gens[node]].numpy() < getattr(network,node)[["max_p_mw","max_q_mvar"]].values
         getattr(network,node)[["max_p_mw","max_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]]
+        
+        valid_min = getattr(network,node)[["min_p_mw","min_q_mvar"]].values < values[i*nb_gens[node]:(i+1)*nb_gens[node]].numpy()
         getattr(network,node)[["min_p_mw","min_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]]
 
-    remaining_errors = pp.diagnostic(network, report_style="compact")
-    print(remaining_errors)
+        print(node,": Valid min values respected:", valid_min.all(), "Valid max values respected:", valid_max.all())
+        valid_min_max = valid_min_max & valid_max.all() & valid_min.all()
 
-    valid = valid and remaining_errors == {}
+    run_errors = pp.diagnostic(network, report_style="compact")
+    if run_errors != {}:
+        print(run_errors)
+    
+    valid = run_errors == {} & valid_min_max
     return valid
 
 def validate_opf(networks, val_graphs, outputs, y_nodes):
