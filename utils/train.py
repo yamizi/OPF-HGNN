@@ -1,6 +1,10 @@
 import torch.nn.functional as F
 import torch
 
+def relative_loss(yhat,y):
+    #criterion = torch.nn.L1Loss()
+    criterion = torch.nn.MSELoss()
+    return criterion(yhat,y)/yhat
 
 def train_opf(model,train_loader, val_loader, max_epochs=200):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
@@ -15,7 +19,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200):
         train_loss = 0
         print("epoch",epoch)
         for batch in train_loader:
-            out, loss, losses = train_step(model, optimizer,batch,None,["gen","ext_grid"],torch.nn.L1Loss())
+            out, loss, losses = train_step(model, optimizer,batch,None,["gen","ext_grid"],relative_loss)
             train_loss += loss
 
         train_loss /= len(train_loader)
@@ -27,7 +31,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200):
         val_loss_ext_grid = 0
         
         for batch in val_loader:
-            out, loss, losses = eval_step(model, batch,None,["gen","ext_grid"],torch.nn.L1Loss())
+            out, loss, losses = eval_step(model, batch,None,["gen","ext_grid"],relative_loss)
             val_loss += loss
             val_loss_gen += losses[0]
             val_loss_ext_grid += losses[1]
