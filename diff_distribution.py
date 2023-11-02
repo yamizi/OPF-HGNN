@@ -1,3 +1,4 @@
+import uuid
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -16,26 +17,33 @@ from utils.train import train_opf
 from utils.plot import plot_losses
 import json
 
-def run_case(training_case=["case9",64,0.7,["cost", "load"]],
+def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
              validation_case=["case9",64,0.7,["cost", "load"]] ,
              save_path="./output", title=""):
     
+    uniqueid = uuid.uuid4()
     
-    train_case_name, nb_graphs, mutation_rate, mutations = training_case
-
-
-    train_graphs, network, _, uniqueid = build_dataset(train_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
-                                               mutation_rate=mutation_rate, mutations=mutations)
-    print("Correct training graphs {}/{}".format(len(train_graphs),nb_graphs))
-    train_loader = DataLoader([g[0] for g in train_graphs], batch_size=5)
-
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
-    val_graphs, val_network, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
+    val_graphs, network, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
                                                mutation_rate=mutation_rate, mutations=mutations, uniqueid=uniqueid)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
     val_loader = DataLoader([g[0] for g in val_graphs], batch_size=5)
 
+
+    train_graphs = []
+    nb_graphs = 0
+    for training_case in training_cases:
+        train_case_name, nb_graph, mutation_rate, mutations = training_case
+
+        train_graph, _, _, _ = build_dataset(train_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
+                                               mutation_rate=mutation_rate, mutations=mutations, uniqueid=uniqueid)
     
+        train_graphs += train_graph
+        nb_graphs+=nb_graph
+    
+    print("Correct training graphs {}/{}".format(len(train_graphs),nb_graphs))
+    train_loader = DataLoader([g[0] for g in train_graphs], batch_size=5)
+
     if len(train_graphs)==0:
         return 
     
@@ -52,6 +60,6 @@ def run_case(training_case=["case9",64,0.7,["cost", "load"]],
     plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
 
 
-training_case=["case9",64,0.7,["cost"]]
+training_case=[["case9",64,0.7,["cost"]]]
 validation_case=["case14",32,0.7,["cost"]]
 run_case(training_case=training_case,validation_case=validation_case, title="generalization cost", save_path="./output/case9_14")
