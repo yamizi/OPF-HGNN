@@ -6,7 +6,7 @@ def relative_loss(yhat,y):
     #criterion = torch.nn.MSELoss(reduction="none")
     return criterion(yhat,y)/yhat.abs()
 
-def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"]):
+def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     loss_fn = torch.nn.MSELoss() 
     loss_fn = relative_loss
@@ -17,15 +17,16 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
     val_losses_ext_grid  = []
     
 
-    for epoch in range(1,max_epochs, log_every=10):
+    for epoch in range(1,max_epochs):
         train_loss = 0
-        print("epoch",epoch)
+        
         for batch in train_loader:
             out, loss, losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn)
             train_loss += loss
 
         train_loss /= len(train_loader)
         if epoch % log_every == 0:
+            print("epoch",epoch)
             print("training loss",train_loss)
         train_losses.append(train_loss)
 
