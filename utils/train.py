@@ -17,7 +17,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
     val_losses_ext_grid  = []
     
 
-    for epoch in range(1,max_epochs):
+    for epoch in range(1,max_epochs, log_every=10):
         train_loss = 0
         print("epoch",epoch)
         for batch in train_loader:
@@ -25,7 +25,8 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
             train_loss += loss
 
         train_loss /= len(train_loader)
-        print("training loss",train_loss)
+        if epoch % log_every == 0:
+            print("training loss",train_loss)
         train_losses.append(train_loss)
 
         val_loss = 0
@@ -44,7 +45,9 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
                 val_loss_ext_grid += losses[1].mean()
 
         val_loss /= len(val_loader)
-        print("validation loss",val_loss)
+        if epoch % log_every == 0:
+            print("validation loss",val_loss)
+            
         val_losses.append(val_loss)
         
         val_loss_gen /= len(val_loader)
