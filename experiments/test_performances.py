@@ -1,0 +1,32 @@
+from diff_distribution import run_case
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-m', '--mutations',
+                        help="Mutations separated by +",
+                        default="cost+load+load_relative"
+                        type=str) 
+
+parser.add_argument('-c', '--cases',
+                        help="Cases separated by +",
+                        default="case9+case14+case30+case118",
+                        type=str) 
+
+parser.add_argument('-t','--nb_train', help="Number of graphs used in training", type=int, default=8000)
+parser.add_argument('-v','--nb_val', help="Number of graphs used in validation", type=int, default=2000)
+
+def run(mutations = ["cost", "load","load_relative"],cases = ["case9","case14","case30","case118"], nb_train = 8000,nb_val = 2000):
+
+    for mutation in mutations:
+        for case in cases:
+            training_case=[[case,nb_train,0.7,[mutation]]]
+            validation_case=[case,nb_val,0.7,[mutation]]
+            path = "./output/test_perf/"+mutation+"/"+case
+            run_case(training_cases=training_case,validation_case=validation_case, title="Test performance on "+mutation, save_path=path)
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    mutations = args.mutations.split("+")
+    cases = args.cases.split("+")
+    run(mutations,cases, args.nb_train,args.nb_val)
