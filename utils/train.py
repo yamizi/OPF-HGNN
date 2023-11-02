@@ -31,7 +31,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200):
         val_loss_ext_grid = 0
         
         for batch in val_loader:
-            out, loss, losses = eval_step(model, batch,None,["gen","ext_grid"],relative_loss)
+            last_out, loss, losses = eval_step(model, batch,None,["gen","ext_grid"],relative_loss)
             val_loss += loss
             val_loss_gen += losses[0]
             val_loss_ext_grid += losses[1]
@@ -46,7 +46,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200):
         val_loss_ext_grid /= len(val_loader)
         val_losses_ext_grid.append(val_loss_ext_grid)
 
-    return train_losses, val_losses, val_losses_gen, val_losses_ext_grid
+    return train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out
 
 def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None):
     model.train()

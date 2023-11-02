@@ -35,7 +35,7 @@ def run_case(case_name="case9", nb_graphs = 64, save_path="./output",
     train_loader = DataLoader([g[0] for g in graphs[:split_index]], batch_size=5)
     val_loader = DataLoader([g[0] for g in graphs[split_index:]], batch_size=5)
   
-    train_losses, val_losses, val_losses_gen, val_losses_ext_grid = train_opf(model,train_loader,val_loader)
+    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,val_loader)
     plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
     
 

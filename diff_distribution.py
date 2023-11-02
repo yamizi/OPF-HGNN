@@ -19,7 +19,8 @@ import json
 
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
              validation_case=["case9",64,0.7,["cost", "load"]] ,
-             save_path="./output", title="",dataset_type="y_no_OPF"):
+             save_path="./output", title="",dataset_type="y_no_OPF",
+             max_epochs=200):
     
     uniqueid = uuid.uuid4()
     
@@ -54,7 +55,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs)
     model = to_hetero(model, data.metadata(), aggr='sum')
     
-    train_losses, val_losses, val_losses_gen, val_losses_ext_grid = train_opf(model,train_loader,val_loader)
+    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,val_loader, max_epochs=max_epochs)
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
     with open(save_path+"/losses.json", "w") as outfile:
@@ -63,12 +64,16 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
 
 
 
+
+
 training_case=[["case9",4,0.7,["load_relative"]]]
 validation_case=["case9",4,0.7,["cost"]]
-run_case(training_cases=training_case,validation_case=validation_case, title="generalization cost", save_path="./output/case9_14")
+run_case(training_cases=training_case,validation_case=validation_case, 
+         title="generalization cost", save_path="./output/case9_14", max_epochs=5)
 
 
 
 training_case=[["case9",64,0.7,["cost"]]]
 validation_case=["case14",32,0.7,["cost"]]
-run_case(training_cases=training_case,validation_case=validation_case, title="generalization cost", save_path="./output/case9_14")
+run_case(training_cases=training_case,validation_case=validation_case, 
+         title="generalization cost", save_path="./output/case9_14")
