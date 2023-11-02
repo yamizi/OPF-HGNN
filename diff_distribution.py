@@ -15,7 +15,7 @@ import torch
 from utils.base_gnn import GNN
 
 from utils.train import train_opf
-from utils.plot import plot_losses
+from utils.plot import plot_losses, plot_results
 import json
 
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
@@ -63,7 +63,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
         json.dump({"train_losses":train_losses, "val_losses":val_losses, "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}, outfile)
     plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
 
-    validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
+    valid_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
+    plot_results(valid_networks, val_graphs, last_out, y_nodes=y_nodes, valid_networks=valid_networks, errors_network= errors_network)
 
 
 training_case=[["case9",320,0.7,["cost"]]]
