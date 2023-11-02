@@ -35,7 +35,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
     for training_case in training_cases:
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
-        train_graph, _, _, _ = build_dataset(train_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
+        train_graph, _, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
                                                mutation_rate=mutation_rate, mutations=mutations, uniqueid=uniqueid)
     
         train_graphs += train_graph
@@ -60,6 +60,13 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
     plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
 
 
+
+training_case=[["case9",4,0.7,["load_relative"]]]
+validation_case=["case9",4,0.7,["cost"]]
+run_case(training_cases=training_case,validation_case=validation_case, title="generalization cost", save_path="./output/case9_14")
+
+
+
 training_case=[["case9",64,0.7,["cost"]]]
 validation_case=["case14",32,0.7,["cost"]]
-run_case(training_case=training_case,validation_case=validation_case, title="generalization cost", save_path="./output/case9_14")
+run_case(training_cases=training_case,validation_case=validation_case, title="generalization cost", save_path="./output/case9_14")
