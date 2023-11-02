@@ -111,4 +111,4 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None)
         losses.append(loss_node.cpu().detach().numpy())
         loss += loss_node.mean()
 
-    return out.detach().cpu(), float(loss),  losses
+    return out, float(loss),  losses

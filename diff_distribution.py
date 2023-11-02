@@ -6,6 +6,7 @@ import sys
 sys.path.append("../")
 
 from utils.pandapower import build_dataset
+from utils.pandapower.opf_validation import validate_opf
 import pandapower as pp
 from torch_geometric.nn import to_hetero
 
@@ -20,12 +21,12 @@ import json
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
              validation_case=["case9",64,0.7,["cost", "load"]] ,
              save_path="./output", title="",dataset_type="y_no_OPF",
-             max_epochs=200):
+             max_epochs=200, y_nodes=["gen","ext_grid"]):
     
     uniqueid = uuid.uuid4()
     
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
-    val_graphs, network, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
+    val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
                                                mutation_rate=mutation_rate, mutations=mutations, uniqueid=uniqueid,
                                                dataset_type=dataset_type)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
@@ -55,22 +56,21 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs)
     model = to_hetero(model, data.metadata(), aggr='sum')
     
-    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,val_loader, max_epochs=max_epochs)
+    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,val_loader, max_epochs=max_epochs, y_nodes=y_nodes)
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
     with open(save_path+"/losses.json", "w") as outfile:
         json.dump({"train_losses":train_losses, "val_losses":val_losses, "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}, outfile)
     plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
 
+    validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
 
 
-
-
-training_case=[["case9",4,0.7,["load_relative"]]]
-validation_case=["case9",4,0.7,["cost"]]
+training_case=[["case9",320,0.7,["cost"]]]
+validation_case=["case9",80,0.7,["cost"]]
 run_case(training_cases=training_case,validation_case=validation_case, 
-         title="generalization cost", save_path="./output/case9_14", max_epochs=5)
-
+         title="generalization cost", save_path="./output/case9_9", max_epochs=200)
+plt.show()
 
 
 training_case=[["case9",64,0.7,["cost"]]]
