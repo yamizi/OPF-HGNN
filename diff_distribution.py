@@ -19,13 +19,14 @@ import json
 
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
              validation_case=["case9",64,0.7,["cost", "load"]] ,
-             save_path="./output", title=""):
+             save_path="./output", title="",dataset_type="y_no_OPF"):
     
     uniqueid = uuid.uuid4()
     
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
     val_graphs, network, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
-                                               mutation_rate=mutation_rate, mutations=mutations, uniqueid=uniqueid)
+                                               mutation_rate=mutation_rate, mutations=mutations, uniqueid=uniqueid,
+                                               dataset_type=dataset_type)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
     val_loader = DataLoader([g[0] for g in val_graphs], batch_size=5)
 
@@ -36,7 +37,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
         train_graph, _, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
-                                               mutation_rate=mutation_rate, mutations=mutations, uniqueid=uniqueid)
+                                               mutation_rate=mutation_rate, mutations=mutations, uniqueid=uniqueid
+                                               ,dataset_type=dataset_type)
     
         train_graphs += train_graph
         nb_graphs+=nb_graph

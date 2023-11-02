@@ -15,14 +15,16 @@ parser.add_argument('-c', '--cases',
 parser.add_argument('-t','--nb_train', help="Number of graphs used in training", type=int, default=8000)
 parser.add_argument('-v','--nb_val', help="Number of graphs used in validation", type=int, default=2000)
 
-def run(mutations = ["cost", "load","load_relative"],cases = ["case9","case14","case30","case118"], nb_train = 8000,nb_val = 2000):
+def run(mutations = ["cost", "load","load_relative"],cases = ["case9","case14","case30","case118"], 
+        nb_train = 8000,nb_val = 2000, dataset_type="y_no_OPF"):
 
     for mutation in mutations:
         for case in cases:
             training_case=[[case,nb_train,0.7,[mutation]]]
             validation_case=[case,nb_val,0.7,[mutation]]
             path = "./output/test_perf/"+mutation+"/"+case
-            run_case(training_cases=training_case,validation_case=validation_case, title="Test performance on "+mutation, save_path=path)
+            run_case(training_cases=training_case,validation_case=validation_case, 
+                     title="Test performance on "+mutation, save_path=path, dataset_type=dataset_type)
 
 
 if __name__ == "__main__":
