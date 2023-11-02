@@ -1,4 +1,6 @@
 from matplotlib import pyplot as plt
+
+
 def plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path):
     fig = plt.figure()
     plt.figure().clear()

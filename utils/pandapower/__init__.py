@@ -5,7 +5,6 @@ from torch_geometric.data import (
 )
 from pandapower.auxiliary import pandapowerNet
 import pandapower as pp
-import numpy as np
 import torch
 import pandas as pd
 from copy import deepcopy
@@ -15,75 +14,16 @@ import json
 import uuid
 import os
 from pandapower.optimal_powerflow import OPFNotConverged
+from utils.io import JSONEncoder
+from utils.pandapower.mutations import mutate_costs, mutate_loads
 
-def mutate_loads(network, min_p=0, max_p=0,min_q=0, max_q=0, clip=False, mutation_rate=0.7, relative=False,
-                 factor = 2,reactive_weight = 0.2):
-    
-    #min_p=-0.08, max_p=0.1,min_q=-0.08, max_q=0.1
-    
-
-    if len(network.load)==0:
-        return network
-    
-    if min_p == max_p == min_q == max_q ==0:
-        if not relative:
-            min_p = network.load.p_mw.min() / factor
-            max_p = network.load.p_mw.max() / factor
-            min_q = network.load.q_mvar.min() / factor
-            max_q = network.load.q_mvar.max() / factor
-
-            if clip:
-                min_p = max(min_p,network.load.p_mw.min()/factor)
-                max_p = min(max_p,network.load.p_mw.max()/factor)
-
-                min_q = max(min_q,network.load.q_mvar.min()/factor)
-                max_q = min(max_q,network.load.q_mvar.max()/factor)
-                
-                print("clipping min and max loads to {} and {}".format(min_p,max_p))
-        else:
-            min_p = -0.1#-0.08 
-            max_p = 0.1
-            min_q = -0.1#-0.08
-            max_q = 0.1
-
-    loads = [[i, np.random.uniform(min_p,max_p)*factor,np.random.uniform(min_p,max_p)*factor] for i in range(len(network.load)) ]
-    
-    mask = np.random.choice(len(loads),(int(len(loads)*mutation_rate)),replace=False)
-    masked_loads = np.array(loads)[mask]
-    
-    print("updating loads", masked_loads)
-    if relative:
-        masked_loads[:,1] = (masked_loads[:,1] + 1) * network.load.loc[masked_loads[:,0].astype(int),"p_mw"]
-        masked_loads[:,2] = (masked_loads[:,2]*reactive_weight + 1) * network.load.loc[masked_loads[:,0].astype(int),"q_mvar"]
-    
-
-    network.load.loc[masked_loads[:,0].astype(int),"p_mw"] = masked_loads[:,1]
-    network.load.loc[masked_loads[:,0].astype(int),"q_mvar"] = masked_loads[:,2]
-
-
-    return network
-
-def mutate_costs(network, min_cost=10, max_cost=100, clip=False, mutation_rate=0.7):
-    if clip and len(network.poly_cost):
-        min_cost = max(min_cost,network.poly_cost.cp1_eur_per_mw.min())
-        max_cost = min(max_cost,network.poly_cost.cp1_eur_per_mw.max())
-
-        print("clipping min and max costs to {} and {}".format(min_cost,max_cost))
-    costs_grids = [("ext_grid",i,{"cp1_eur_per_mw":np.random.randint(min_cost,max_cost)}) for i in range(len(network.ext_grid)) ]
-    costs_gen = [("gen",i,{"cp1_eur_per_mw":np.random.randint(min_cost,max_cost)}) for i in range(len(network.gen)) ]
-    costs_sgen = [("sgen",i,{"cp1_eur_per_mw":np.random.randint(min_cost,max_cost)}) for i in range(len(network.sgen)) ]
-
-    costs = costs_grids + costs_gen + costs_sgen
-    mask = np.random.choice(len(costs),(int(len(costs)*mutation_rate)),replace=False)
-    masked_costs = list(np.array(costs)[mask])
-    build_costs(network,masked_costs)
-
-    return network
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_dataframes="./data", opf=True,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None):
     print("building dataset with {nbsamples} variants")
+
     case_method = getattr(pp.networks, case)
     original_network = case_method()
+    networks = {"original":original_network, "mutants":[]}
     network = deepcopy(original_network)
     graph = PandaPowerDataset(network)
     uniqueid = uuid.uuid4() if uniqueid is None else uniqueid
@@ -125,6 +65,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
             print("error in opf",e)
             continue
 
+        networks["mutants"].append(network)
         if dataset_type=="y_no_OPF":
             graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
                             transform=T.Compose(transforms))
@@ -141,30 +82,8 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
 
         graphs.append(PandaPowerDataset(network,preprocess='metapath2vec'))
    
-    return graphs, network, path, uniqueid
+    return graphs, networks, path, uniqueid
 
-def build_costs(net, costs):
-
-     for cost in costs:
-        et, index, prices = cost
-        
-        for i, p in prices.items():
-            if p is None:
-                prices[i] = 0
-         
-        found = net.poly_cost[(net.poly_cost.element==index) & (net.poly_cost.et==et)]
-        if len(net.poly_cost) and len(found)>0:
-            print("updating cost of ",et,index,"to",prices)
-            net.poly_cost.loc[found.index,list(prices.keys())] = list(prices.values())
-        else:
-            print("setting new cost of ",et,index,"to",prices)
-            pp.create_poly_cost(net, index, et, check=False, **prices)
-
-class JSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if hasattr(obj, 'to_json'):
-            return obj.to_json(orient='records')
-        return json.JSONEncoder.default(self, obj)
 
 class PandaPowerDataset(InMemoryDataset):
     def __init__(self, network: pandapowerNet, preprocess: Optional[str] = None,
