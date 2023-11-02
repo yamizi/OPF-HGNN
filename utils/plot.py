@@ -10,7 +10,7 @@ def plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, cas
 
     plt.xlabel("training epoch")
     plt.ylabel("L1 error")
-    plt.title('Learning p_mw and q_mvar for generators on '+case_name+" "+title)
+    plt.title('p_mw and q_mvar on '+case_name+" "+title)
     plt.legend()
     plt.savefig(save_path+"/losses.png")
     print("over")

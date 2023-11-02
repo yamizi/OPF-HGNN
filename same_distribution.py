@@ -31,19 +31,12 @@ def run_case(case_name="case9", nb_graphs = 64, save_path="./output",
     data = graph_y[0]
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs)
     model = to_hetero(model, data.metadata(), aggr='sum')
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-
 
     train_loader = DataLoader([g[0] for g in graphs[:split_index]], batch_size=5)
     val_loader = DataLoader([g[0] for g in graphs[split_index:]], batch_size=5)
-    train_losses = []
-    val_losses = []
-    val_losses_gen = []
-    val_losses_ext_grid  = []
-
+  
     train_losses, val_losses, val_losses_gen, val_losses_ext_grid = train_opf(model,train_loader,val_loader)
-
-    plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_pat)
+    plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
     
 
 run_case(case_name="case9", nb_graphs = 64,mutations = ["load"], title="load mutation", save_path="./output/case9")
