@@ -16,29 +16,35 @@ import uuid
 import os
 from pandapower.optimal_powerflow import OPFNotConverged
 
-def mutate_loads(network, min_p=0, max_p=0,min_q=0, max_q=0, clip=False, mutation_rate=0.7):
+def mutate_loads(network, min_p=0, max_p=0,min_q=0, max_q=0, clip=False, mutation_rate=0.7, relative=False,
+                 factor = 2,reactive_weight = 0.2):
     
     #min_p=-0.08, max_p=0.1,min_q=-0.08, max_q=0.1
-    factor = 0.2
+    
 
     if len(network.load)==0:
         return network
     
     if min_p == max_p == min_q == max_q ==0:
-        min_p = network.load.p_mw.min() / factor
-        max_p = network.load.p_mw.max() / factor
-        min_q = network.load.q_mvar.min() / factor
-        max_q = network.load.q_mvar.max() / factor
+        if not relative:
+            min_p = network.load.p_mw.min() / factor
+            max_p = network.load.p_mw.max() / factor
+            min_q = network.load.q_mvar.min() / factor
+            max_q = network.load.q_mvar.max() / factor
 
+            if clip:
+                min_p = max(min_p,network.load.p_mw.min()/factor)
+                max_p = min(max_p,network.load.p_mw.max()/factor)
 
-    if clip:
-        min_p = max(min_p,network.load.p_mw.min()/factor)
-        max_p = min(max_p,network.load.p_mw.max()/factor)
-
-        min_q = max(min_q,network.load.q_mvar.min()/factor)
-        max_q = min(max_q,network.load.q_mvar.max()/factor)
-
-        print("clipping min and max loads to {} and {}".format(min_p,max_p))
+                min_q = max(min_q,network.load.q_mvar.min()/factor)
+                max_q = min(max_q,network.load.q_mvar.max()/factor)
+                
+                print("clipping min and max loads to {} and {}".format(min_p,max_p))
+        else:
+            min_p = -0.1#-0.08 
+            max_p = 0.1
+            min_q = -0.1#-0.08
+            max_q = 0.1
 
     loads = [[i, np.random.uniform(min_p,max_p)*factor,np.random.uniform(min_p,max_p)*factor] for i in range(len(network.load)) ]
     
@@ -46,6 +52,11 @@ def mutate_loads(network, min_p=0, max_p=0,min_q=0, max_q=0, clip=False, mutatio
     masked_loads = np.array(loads)[mask]
     
     print("updating loads", masked_loads)
+    if relative:
+        masked_loads[:,1] = (masked_loads[:,1] + 1) * network.load.loc[masked_loads[:,0].astype(int),"p_mw"]
+        masked_loads[:,2] = (masked_loads[:,2]*reactive_weight + 1) * network.load.loc[masked_loads[:,0].astype(int),"q_mvar"]
+    
+
     network.load.loc[masked_loads[:,0].astype(int),"p_mw"] = masked_loads[:,1]
     network.load.loc[masked_loads[:,0].astype(int),"q_mvar"] = masked_loads[:,2]
 
@@ -101,6 +112,9 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
             
             if "load" in mutations:
                 network = mutate_loads(network, mutation_rate=mutation_rate)
+
+            if "load_relative" in mutations:
+                network = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
 
         try:
             if opf:
