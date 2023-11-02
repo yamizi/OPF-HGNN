@@ -2,24 +2,26 @@ import torch.nn.functional as F
 import torch
 
 def relative_loss(yhat,y):
-    #criterion = torch.nn.L1Loss()
-    criterion = torch.nn.MSELoss()
-    return criterion(yhat,y)/yhat
+    criterion = torch.nn.L1Loss(reduction="none")
+    #criterion = torch.nn.MSELoss(reduction="none")
+    return criterion(yhat,y)/yhat.abs()
 
-def train_opf(model,train_loader, val_loader, max_epochs=200):
+def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"]):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    loss_fn = torch.nn.MSELoss() 
+    loss_fn = relative_loss
 
-    
     train_losses = []
     val_losses = []
     val_losses_gen = []
     val_losses_ext_grid  = []
+    
 
     for epoch in range(1,max_epochs):
         train_loss = 0
         print("epoch",epoch)
         for batch in train_loader:
-            out, loss, losses = train_step(model, optimizer,batch,None,["gen","ext_grid"],relative_loss)
+            out, loss, losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn)
             train_loss += loss
 
         train_loss /= len(train_loader)
@@ -29,12 +31,17 @@ def train_opf(model,train_loader, val_loader, max_epochs=200):
         val_loss = 0
         val_loss_gen = 0
         val_loss_ext_grid = 0
-        
-        for batch in val_loader:
-            last_out, loss, losses = eval_step(model, batch,None,["gen","ext_grid"],relative_loss)
-            val_loss += loss
-            val_loss_gen += losses[0]
-            val_loss_ext_grid += losses[1]
+
+        val_losses_all = []
+        out_all = []
+        with torch.no_grad():
+            for batch in val_loader:
+                last_out, loss, losses = eval_step(model, batch,None,y_nodes,loss_fn)
+                val_loss += loss
+                val_losses_all.append(losses)
+                out_all.append(last_out)
+                val_loss_gen += losses[0].mean()
+                val_loss_ext_grid += losses[1].mean()
 
         val_loss /= len(val_loader)
         print("validation loss",val_loss)
@@ -46,7 +53,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200):
         val_loss_ext_grid /= len(val_loader)
         val_losses_ext_grid.append(val_loss_ext_grid)
 
-    return train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out
+    return train_losses, val_losses, val_losses_gen, val_losses_ext_grid, (out_all, val_losses_all)
 
 def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None):
     model.train()
@@ -71,8 +78,8 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             output = output[mask_node[i]]
 
         loss_node = loss_f(label, output)
-        losses.append(loss_node.item())
-        loss += loss_node
+        losses.append(loss_node.cpu().detach().numpy())
+        loss += loss_node.mean()
 
     loss.backward()
     optimizer.step()
@@ -101,7 +108,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None)
             output = output[mask_node[i]]
 
         loss_node = loss_f(label, output)
-        losses.append(loss_node.item())
-        loss += loss_node
+        losses.append(loss_node.cpu().detach().numpy())
+        loss += loss_node.mean()
 
-    return out, float(loss),  losses
+    return out.detach().cpu(), float(loss),  losses
