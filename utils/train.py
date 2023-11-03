@@ -6,6 +6,13 @@ def relative_loss(yhat,y):
     #criterion = torch.nn.MSELoss(reduction="none")
     return criterion(yhat,y)/yhat.abs()
 
+def boundary_loss(boundaries,y):
+    minp = boundaries[:,0]
+    maxp = boundaries[:,1]
+    minq = boundaries[:,2]
+    maxq = boundaries[:,3]
+    return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
+
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     loss_fn = torch.nn.MSELoss() 
@@ -81,7 +88,9 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             label = label[mask_node[i]]
             output = output[mask_node[i]]
 
-        loss_node = loss_f(label, output)
+        loss_label = loss_f(label, output)
+        loss_boundary = boundary_loss(data[node].boundaries, output)
+        loss_node = torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
         losses.append(loss_node.cpu().detach().numpy())
         loss += loss_node.mean()
 

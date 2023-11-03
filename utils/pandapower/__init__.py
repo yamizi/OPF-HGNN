@@ -149,7 +149,9 @@ def build_hetero_data(network, include_res=True, opf_as_y=True):
                     merged_df.drop(columns=["va_degree","vm_pu_y", "p_mw_y","q_mvar"],inplace=True)
                     # y = ["p_mw","q_mvar", "va_degree"]
             pf = getattr(network,"res_"+node)[y]
-            data[node].y =torch.Tensor(pf.values.tolist())
+            merged_df[["min_p_mw","max_p_mw","min_q_mvar","max_q_mvar"]]
+            data[node].boundaries = torch.Tensor(merged_df[["min_p_mw","max_p_mw","min_q_mvar","max_q_mvar"]].values)
+            data[node].y =torch.Tensor(pf.values)
 
             node_cost = costs[costs["et"]==node]
             node_cost.index = node_cost.element
