@@ -62,17 +62,19 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     model = to_hetero(model, data.metadata(), aggr='sum')
     
     train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,val_loader, max_epochs=max_epochs, y_nodes=y_nodes)
+    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
+    
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
-    log_dict = {"train_losses":train_losses, "val_losses":val_losses, "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}
+    log_dict = {"constraint":constrained_networks,"train_losses":train_losses, "val_losses":val_losses, "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}
     with open(save_path+"/losses.json", "w") as outfile:
         json.dump(log_dict, outfile)
     
     if experiment is not None:
         log_dict_series(log_dict, experiment)
-        log_opf(last_out, experiment)
+        log_opf(val_graphs, last_out, y_nodes,experiment)
 
-    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
+    
     
     if plot:
         plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
@@ -81,14 +83,14 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
 if __name__ == "__main__":
 
-    training_case=[["case9",320,0.7,["cost"]]]
-    validation_case=["case9",80,0.7,["cost"]]
+    training_case=[["case9",32,0.7,["cost"]]]
+    validation_case=["case9",8,0.7,["cost"]]
     
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, 
-            title="generalization cost", save_path="./output/case9_9", max_epochs=200, experiment=experiment)
+            title="generalization cost", save_path="./output/case9_9", max_epochs=5, experiment=experiment)
     plt.show()
-
+    exit()
 
     training_case=[["case9",64,0.7,["cost"]]]
     validation_case=["case14",32,0.7,["cost"]]

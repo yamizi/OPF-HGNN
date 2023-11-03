@@ -78,7 +78,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
             
         if save_dataframes is not None:
             path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
-            graph.export(path+"/op_{}".format(sample_id))
+            graph.export(path+"op_{}".format(sample_id), experiment=experiment)
 
         graphs.append(PandaPowerDataset(network,preprocess='metapath2vec'))
    
@@ -119,7 +119,7 @@ class PandaPowerDataset(InMemoryDataset):
             with open(filename+"."+format,"w") as f:
                 json.dump(self.dataframes, f, cls=JSONEncoder)
             if experiment is not None:
-                experiment.log_asset(filename+"."+format)
+                experiment.log_asset(filename+"."+format,filename+"."+format, copy_to_tmp=False)
         elif format=="xlsx":
             with open(filename+"."+format,"wb") as f:
                 for (sheetname, sheet) in self.dataframes.items():

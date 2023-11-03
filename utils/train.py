@@ -24,7 +24,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
     val_losses_ext_grid  = []
     
 
-    for epoch in range(1,max_epochs):
+    for epoch in range(0,max_epochs):
         train_loss = 0
         
         for batch in train_loader:

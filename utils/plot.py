@@ -6,7 +6,7 @@ def plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, cas
     #plt.cla()
     #plt.clf()
 
-    fig = plt.figure()
+    #fig = plt.figure()
     plt.figure().clear()
 
     plt.plot(train_losses, label="train loss")
@@ -29,7 +29,7 @@ def plot_results(networks, val_graphs, outputs, y_nodes,constrained_networks,err
 
     for node, outputs in output_nodes.items():
         ground_truth = torch.cat([e.data[node].y for e in val_graphs])
-        fig = plt.figure()
+        #fig = plt.figure()
         plt.figure().clear()
 
         plt.plot(outputs[:,0], label="Predicted P_mw")
