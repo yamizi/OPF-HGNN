@@ -13,7 +13,8 @@ def boundary_loss(boundaries,y):
     maxq = boundaries[:,3]
     return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
-def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10):
+def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
+              device="cpu"):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     loss_fn = torch.nn.MSELoss() 
     loss_fn = relative_loss
@@ -28,6 +29,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         train_loss = 0
         
         for batch in train_loader:
+            batch = batch.to(device)
             out, loss, losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn)
             train_loss += loss
 
@@ -45,6 +47,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         out_all = []
         with torch.no_grad():
             for batch in val_loader:
+                batch = batch.to(device)
                 last_out, loss, losses = eval_step(model, batch,None,y_nodes,loss_fn)
                 val_loss += loss
                 val_losses_all.append(losses)

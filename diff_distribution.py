@@ -8,26 +8,32 @@ from torch_geometric.nn import to_hetero
 
 from torch_geometric.loader import DataLoader
 from utils.base_gnn import GNN
-
+import torch
 from utils.train import train_opf
 from utils.plot import plot_losses, plot_results
 import json
 
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
              validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True,
-             save_path="./output", title="",dataset_type="y_no_OPF",scale=False,
-             max_epochs=200, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5):
+             save_path="./output", title="",dataset_type="y_OPF",scale=False,
+             max_epochs=200, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5,
+             device="cpu"):
     
     uniqueid = uuid.uuid4()
     if experiment is not None:
         experiment.log_parameters({"uniqueid":uniqueid, "max_epochs":max_epochs,"dataset_type":dataset_type,
-                               "save_path":save_path,"title":title,"y_nodes":y_nodes,"plot":plot})
+                            "save_path":save_path,"title":title,"y_nodes":y_nodes,"plot":plot,"device":device})
     
+    if torch.cuda.is_available() and "cuda" in device:
+        device = device
+    else:
+        device="cpu"
+
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
     val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
                                                mutation_rate=mutation_rate, uniqueid="{}/val".format(uniqueid),
                                                dataset_type=dataset_type, experiment=experiment, 
-                                               mutations=mutations, scale=scale)
+                                               mutations=mutations, scale=scale, device=device)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
@@ -39,6 +45,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
         train_graph, train_network, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
                                       scale=scale,mutation_rate=mutation_rate, uniqueid="{}/train".format(uniqueid),
+                                               device=device,
                                                dataset_type=dataset_type, experiment=experiment, mutations=mutations)
     
         train_graphs += train_graph
@@ -58,11 +65,13 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     
     graph_y = train_graphs[0]
     data = graph_y[0]
-    model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs)
+    model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs).to(device)
     model = to_hetero(model, data.metadata(), aggr='sum')
     
-    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,val_loader, max_epochs=max_epochs, y_nodes=y_nodes)
-    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
+    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,
+                                            val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
+    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes,
+                                                        device=device)
     
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
