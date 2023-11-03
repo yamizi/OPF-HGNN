@@ -19,8 +19,25 @@ from utils.pandapower.mutations import mutate_costs, mutate_loads
 
 
 def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
-
+    print("clearing duplicates")
+    train_graphs_c = deepcopy(train_graphs)
     # TODO
+    for i, val_graph in enumerate(val_graphs):
+        
+        load = val_graph[0]["load"].x
+        gen = val_graph[0]["gen"].x
+        ext_grid = val_graph[0]["ext_grid"].x
+        for j, train_graph in enumerate(train_graphs_c):
+            load_train = train_graph[0]["load"].x
+            gen_train = train_graph[0]["gen"].x
+            ext_grid_train = train_graph[0]["ext_grid"].x
+
+            if(load.equals(load_train) and gen.equals(gen_train) and ext_grid.equals(ext_grid_train)):
+                print("duplicate found at", i,j)
+                del train_graphs[j]
+                del train_networks[j]
+                
+
     return train_graphs, train_networks, val_graphs, valid_networks
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_dataframes="./data", opf=True,
