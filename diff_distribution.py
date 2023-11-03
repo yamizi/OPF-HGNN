@@ -1,18 +1,12 @@
 import uuid
-import numpy as np
-import pandas as pd
 from matplotlib import pyplot as plt
-import sys
-sys.path.append("../")
 
 from utils.logging import init_comet, log_dict_series, log_opf
 from utils.pandapower import build_dataset
 from utils.pandapower.opf_validation import validate_opf
-import pandapower as pp
 from torch_geometric.nn import to_hetero
 
-from torch_geometric.loader import NeighborLoader, DataLoader
-import torch
+from torch_geometric.loader import DataLoader
 from utils.base_gnn import GNN
 
 from utils.train import train_opf
@@ -21,7 +15,7 @@ import json
 
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
              validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True,
-             save_path="./output", title="",dataset_type="y_no_OPF",
+             save_path="./output", title="",dataset_type="y_no_OPF",scale=True,
              max_epochs=200, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5):
     
     uniqueid = uuid.uuid4()
@@ -32,7 +26,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
     val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
                                                mutation_rate=mutation_rate, uniqueid="{}/val".format(uniqueid),
-                                               dataset_type=dataset_type, experiment=experiment, mutations=mutations)
+                                               dataset_type=dataset_type, experiment=experiment, 
+                                               mutations=mutations, scale=scale)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
     val_loader = DataLoader([g[0] for g in val_graphs], batch_size=train_batch_size)
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
@@ -43,7 +38,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
         train_graph, _, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
-                                               mutation_rate=mutation_rate, uniqueid="{}/train".format(uniqueid),
+                                      scale=scale,mutation_rate=mutation_rate, uniqueid="{}/train".format(uniqueid),
                                                dataset_type=dataset_type, experiment=experiment, mutations=mutations)
     
         train_graphs += train_graph
@@ -83,12 +78,13 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
 if __name__ == "__main__":
 
-    training_case=[["case9",32,0.7,["cost"]]]
-    validation_case=["case9",8,0.7,["cost"]]
+    training_case=[["case9",320,0.7,["cost"]]]
+    validation_case=["case9",80,0.7,["cost"]]
     
     experiment = init_comet({"cases":"case9"})
-    run_case(training_cases=training_case,validation_case=validation_case, 
-            title="generalization cost", save_path="./output/case9_9", max_epochs=5, experiment=experiment)
+    run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
+            title="generalization cost", save_path="./output/case9_9", max_epochs=200, experiment=experiment,
+            scale=True)
     plt.show()
     exit()
 

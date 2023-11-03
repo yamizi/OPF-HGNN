@@ -18,14 +18,14 @@ from utils.io import JSONEncoder
 from utils.pandapower.mutations import mutate_costs, mutate_loads
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_dataframes="./data", opf=True,
-                  mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None):
+                  mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True):
     print("building dataset with {nbsamples} variants")
 
     case_method = getattr(pp.networks, case)
     original_network = case_method()
     networks = {"original":original_network, "mutants":[]}
     network = deepcopy(original_network)
-    graph = PandaPowerDataset(network)
+    graph = PandaPowerDataset(network,scale=scale)
     uniqueid = uuid.uuid4() if uniqueid is None else uniqueid
     path = "."
 
@@ -40,7 +40,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
     if nbsamples==0:
         pp.runopp(network, delta=1e-16)
         graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms))
+                            transform=T.Compose(transforms),scale=scale)
         return [graph_y]
     
     for sample_id in range(nbsamples):
@@ -68,13 +68,13 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
         networks["mutants"].append(network)
         if dataset_type=="y_no_OPF":
             graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms))
+                            transform=T.Compose(transforms),scale=scale)
         elif dataset_type=="y_OPF":
             graph_y = PandaPowerDataset(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms))
+                            transform=T.Compose(transforms),scale=scale)
         if dataset_type=="no_y_OPF":
             graph_y = PandaPowerDataset(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
-                            transform=T.Compose(transforms))
+                            transform=T.Compose(transforms),scale=scale)
             
         if save_dataframes is not None:
             path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
@@ -87,7 +87,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
 
 class PandaPowerDataset(InMemoryDataset):
     def __init__(self, network: pandapowerNet, preprocess: Optional[str] = None,
-                 transform: Optional[Callable] = None,
+                 transform: Optional[Callable] = None,scale=True,
                  pre_transform: Optional[Callable] = None,
                  include_res:bool=True, opf_as_y:bool=True):
         
@@ -96,7 +96,7 @@ class PandaPowerDataset(InMemoryDataset):
         assert self.preprocess in [None, 'metapath2vec', 'transe']
         super().__init__(None, transform, pre_transform)
 
-        hetero_data, edges, dataframes, scalers= build_hetero_data(network, include_res, opf_as_y)
+        hetero_data, edges, dataframes, scalers= build_hetero_data(network, include_res, opf_as_y, scale=scale)
         self.data, self.slices = hetero_data, None
         self.scalers = scalers
         self.dataframes = dataframes
@@ -119,13 +119,13 @@ class PandaPowerDataset(InMemoryDataset):
             with open(filename+"."+format,"w") as f:
                 json.dump(self.dataframes, f, cls=JSONEncoder)
             if experiment is not None:
-                experiment.log_asset(filename+"."+format,filename+"."+format, copy_to_tmp=False)
+                experiment.log_asset(filename+"."+format,filename+"."+format)
         elif format=="xlsx":
             with open(filename+"."+format,"wb") as f:
                 for (sheetname, sheet) in self.dataframes.items():
                     sheet.to_excel(f,sheet_name=sheetname)
 
-def build_hetero_data(network, include_res=True, opf_as_y=True):
+def build_hetero_data(network, include_res=True, opf_as_y=True, scale=True):
      
     node_types = ["bus","load","sgen","gen","shunt","ext_grid","line","trafo","trafo3w","impedance","xward"]
     costs = network.poly_cost
@@ -161,7 +161,10 @@ def build_hetero_data(network, include_res=True, opf_as_y=True):
 
         merged_df.drop(columns=["name"],inplace=True)   
         scaler = StandardScaler()
-        data[node].x =torch.Tensor(scaler.fit_transform(pd.get_dummies(merged_df).dropna(axis=1)))
+        one_hot = pd.get_dummies(merged_df).dropna(axis=1)
+        if scale:
+            one_hot = scaler.fit_transform(one_hot)
+        data[node].x =torch.Tensor(one_hot)
         scalers[node] = scaler
 
         if "from_bus" in merged_df.columns:
