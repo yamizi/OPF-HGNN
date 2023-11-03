@@ -40,7 +40,7 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
 
     return train_graphs, train_networks, val_graphs, valid_networks
 
-def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_dataframes="./data", opf=True,
+def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=True,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True):
     print("building dataset with {nbsamples} variants")
 
@@ -48,7 +48,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
     original_network = case_method()
     networks = {"original":original_network, "mutants":[]}
     network = deepcopy(original_network)
-    graph = PandaPowerDataset(network,scale=scale)
+    graph = PandaPowerGraph(network,scale=scale)
     uniqueid = uuid.uuid4() if uniqueid is None else uniqueid
     path = "."
 
@@ -62,7 +62,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
 
     if nbsamples==0:
         pp.runopp(network, delta=1e-16)
-        graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
+        graph_y = PandaPowerGraph(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
                             transform=T.Compose(transforms),scale=scale)
         return [graph_y]
     
@@ -90,25 +90,25 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_data
 
         networks["mutants"].append(network)
         if dataset_type=="y_no_OPF":
-            graph_y = PandaPowerDataset(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
+            graph_y = PandaPowerGraph(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
                             transform=T.Compose(transforms),scale=scale)
         elif dataset_type=="y_OPF":
-            graph_y = PandaPowerDataset(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
+            graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
                             transform=T.Compose(transforms),scale=scale)
         if dataset_type=="no_y_OPF":
-            graph_y = PandaPowerDataset(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
+            graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
                             transform=T.Compose(transforms),scale=scale)
             
         if save_dataframes is not None:
             path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
-            graph.export(path+"op_{}".format(sample_id), experiment=experiment)
+            graph_y.export(path+"op_{}".format(sample_id), experiment=experiment)
 
-        graphs.append(PandaPowerDataset(network,preprocess='metapath2vec'))
+        graphs.append(graph_y)
    
     return graphs, networks, path, uniqueid
 
 
-class PandaPowerDataset(InMemoryDataset):
+class PandaPowerGraph(InMemoryDataset):
     def __init__(self, network: pandapowerNet, preprocess: Optional[str] = None,
                  transform: Optional[Callable] = None,scale=True,
                  pre_transform: Optional[Callable] = None,
