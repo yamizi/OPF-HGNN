@@ -1,3 +1,6 @@
+import sys
+sys.path.append(".")
+
 from utils.logging import init_comet
 from diff_distribution import run_case
 import argparse
