@@ -30,7 +30,7 @@ def run(mutations = ["cost", "load","load_relative"],cases = ["case9","case14","
             path = "./output/test_perf/"+mutation+"/"+case
             run_case(training_cases=training_case,validation_case=validation_case, plot=False,
                      title="Test performance on "+mutation, save_path=path, dataset_type=dataset_type,
-                     experiment=experiment,train_batch_size=128,val_batch_size=256,scale=True)
+                     experiment=experiment,train_batch_size=128,val_batch_size=256,scale=False)
 
 
 if __name__ == "__main__":
