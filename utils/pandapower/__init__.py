@@ -18,7 +18,7 @@ from utils.io import JSONEncoder
 from utils.pandapower.mutations import mutate_costs, mutate_loads
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_dataframes="./data", opf=True,
-                  mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None):
+                  mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None):
     print("building dataset with {nbsamples} variants")
 
     case_method = getattr(pp.networks, case)
@@ -110,7 +110,7 @@ class PandaPowerDataset(InMemoryDataset):
     def output_nodes(self) -> [str]:
         return [e for e in ["ext_grid","sgen","gen"] if hasattr(self._data[e],"y")]
     
-    def export(self,filename="export",format="json"):
+    def export(self,filename="export",format="json", experiment=None):
 
         if format=="csv":
             for (sheetname, sheet) in self.dataframes.items():
@@ -118,6 +118,8 @@ class PandaPowerDataset(InMemoryDataset):
         elif format=="json":
             with open(filename+"."+format,"w") as f:
                 json.dump(self.dataframes, f, cls=JSONEncoder)
+            if experiment is not None:
+                experiment.log_asset(filename+"."+format)
         elif format=="xlsx":
             with open(filename+"."+format,"wb") as f:
                 for (sheetname, sheet) in self.dataframes.items():

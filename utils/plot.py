@@ -27,9 +27,6 @@ def plot_results(networks, val_graphs, outputs, y_nodes,constrained_networks,err
     output_nodes = {node:torch.cat([e[node] for e in out_all],0) for node in y_nodes}
     nb_gens = {node:len(networks.get("original")[node]) for node in y_nodes}
 
-
-    
-
     for node, outputs in output_nodes.items():
         ground_truth = torch.cat([e.data[node].y for e in val_graphs])
         fig = plt.figure()

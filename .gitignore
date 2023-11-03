@@ -11,3 +11,4 @@ data/*
 output/*
 utils/__pycache__/*
 utils/pandapower/__pycache__/*
+appconfig.py

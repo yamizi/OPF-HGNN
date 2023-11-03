@@ -1,10 +1,11 @@
+from utils.logging import init_comet
 from diff_distribution import run_case
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--mutations',
                         help="Mutations separated by +",
-                        default="cost+load+load_relative"
+                        default="cost+load+load_relative",
                         type=str) 
 
 parser.add_argument('-c', '--cases',
@@ -20,11 +21,13 @@ def run(mutations = ["cost", "load","load_relative"],cases = ["case9","case14","
 
     for mutation in mutations:
         for case in cases:
+            experiment = init_comet({"case":case, mutation:mutation},"test_perf")
             training_case=[[case,nb_train,0.7,[mutation]]]
             validation_case=[case,nb_val,0.7,[mutation]]
             path = "./output/test_perf/"+mutation+"/"+case
-            run_case(training_cases=training_case,validation_case=validation_case, 
-                     title="Test performance on "+mutation, save_path=path, dataset_type=dataset_type)
+            run_case(training_cases=training_case,validation_case=validation_case, plot=False,
+                     title="Test performance on "+mutation, save_path=path, dataset_type=dataset_type,
+                     experiment=experiment)
 
 
 if __name__ == "__main__":
