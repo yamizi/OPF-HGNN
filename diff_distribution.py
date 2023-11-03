@@ -63,8 +63,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],
         json.dump({"train_losses":train_losses, "val_losses":val_losses, "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}, outfile)
     plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
 
-    valid_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
-    plot_results(valid_networks, val_graphs, last_out, y_nodes=y_nodes, valid_networks=valid_networks, errors_network= errors_network)
+    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
+    plot_results(valid_networks, val_graphs, last_out, y_nodes, constrained_networks, errors_network, case_name, title, save_path)
 
 
 training_case=[["case9",320,0.7,["cost"]]]

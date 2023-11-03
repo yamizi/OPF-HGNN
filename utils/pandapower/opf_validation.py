@@ -18,6 +18,8 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
 
         boundaries = {**boundaries, node+"_min":not valid_min.all(), node+"_max":not valid_max.all()}
 
+
+
     run_valid = True
     run_errors = pp.diagnostic(network, report_style="compact")
     if run_errors != {} and list(run_errors.keys())=='impedance_values_close_to_zero':

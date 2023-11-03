@@ -10,3 +10,4 @@ __pycache__/*
 data/*
 output/*
 utils/__pycache__/*
+utils/pandapower/__pycache__/*
