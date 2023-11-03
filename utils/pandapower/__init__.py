@@ -17,6 +17,12 @@ from pandapower.optimal_powerflow import OPFNotConverged
 from utils.io import JSONEncoder
 from utils.pandapower.mutations import mutate_costs, mutate_loads
 
+
+def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
+
+    # TODO
+    return train_graphs, train_networks, val_graphs, valid_networks
+
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_no_OPF", save_dataframes="./data", opf=True,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True):
     print("building dataset with {nbsamples} variants")
@@ -161,7 +167,7 @@ def build_hetero_data(network, include_res=True, opf_as_y=True, scale=True):
 
         merged_df.drop(columns=["name"],inplace=True)   
         scaler = StandardScaler()
-        one_hot = pd.get_dummies(merged_df).dropna(axis=1)
+        one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
         if scale:
             one_hot = scaler.fit_transform(one_hot)
         data[node].x =torch.Tensor(one_hot)

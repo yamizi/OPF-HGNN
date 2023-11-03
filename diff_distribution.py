@@ -2,7 +2,7 @@ import uuid
 from matplotlib import pyplot as plt
 
 from utils.logging import init_comet, log_dict_series, log_opf
-from utils.pandapower import build_dataset
+from utils.pandapower import build_dataset, clear_duplicates
 from utils.pandapower.opf_validation import validate_opf
 from torch_geometric.nn import to_hetero
 
@@ -29,25 +29,30 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
                                                dataset_type=dataset_type, experiment=experiment, 
                                                mutations=mutations, scale=scale)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
-    val_loader = DataLoader([g[0] for g in val_graphs], batch_size=train_batch_size)
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
     train_graphs = []
+    train_networks = []
     nb_graphs = 0
     for training_case in training_cases:
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
-        train_graph, _, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
+        train_graph, train_network, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
                                       scale=scale,mutation_rate=mutation_rate, uniqueid="{}/train".format(uniqueid),
                                                dataset_type=dataset_type, experiment=experiment, mutations=mutations)
     
         train_graphs += train_graph
+        train_networks += train_network
         nb_graphs+=nb_graph
     
     print("Correct training graphs {}/{}".format(len(train_graphs),nb_graphs))
     experiment.log_metric("nb_valid_graphs", len(train_graphs))
-    train_loader = DataLoader([g[0] for g in train_graphs], batch_size=val_batch_size)
 
+    train_graphs, train_networks, val_graphs, valid_networks = clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks)
+
+    train_loader = DataLoader([g[0] for g in train_graphs], batch_size=val_batch_size)
+    val_loader = DataLoader([g[0] for g in val_graphs], batch_size=train_batch_size)
+    
     if len(train_graphs)==0:
         return 
     
@@ -70,7 +75,6 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         log_opf(val_graphs, last_out, y_nodes,experiment)
 
     
-    
     if plot:
         plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
         plot_results(valid_networks, val_graphs, last_out, y_nodes, constrained_networks, errors_network, case_name, title, save_path)
@@ -84,7 +88,7 @@ if __name__ == "__main__":
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
             title="generalization cost", save_path="./output/case9_9", max_epochs=200, experiment=experiment,
-            scale=True)
+            scale=False)
     plt.show()
     exit()
 
