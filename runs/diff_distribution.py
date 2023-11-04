@@ -18,7 +18,7 @@ import json
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
              validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True,
              save_path="./output", title="",dataset_type="y_OPF",scale=False,
-             max_epochs=200, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5,
+             max_epochs=500, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5,
              device="cpu", filter=True):
     
     uniqueid = uuid.uuid4()
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     
     experiment = init_comet({"case":case,"mutation":mutation})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
-            title="generalization load_relative", save_path="./output/case9_9", max_epochs=100, experiment=experiment,
+            title="generalization load_relative", save_path="./output/case9_9", max_epochs=200, experiment=experiment,
             scale=False, filter=True)
     plt.show()
     exit()
