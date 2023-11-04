@@ -24,9 +24,9 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     uniqueid = uuid.uuid4()
     if experiment is not None:
         experiment.log_parameters({"uniqueid":uniqueid, "max_epochs":max_epochs,"dataset_type":dataset_type,
-                                   "scale":scale,
+                                   "scale":scale, "type":"hetero",
                             "save_path":save_path,"title":title,"y_nodes":y_nodes,"plot":plot,"device":device})
-    
+
     if torch.cuda.is_available() and "cuda" in device:
         device = device
     else:
@@ -91,7 +91,6 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         log_dict_series(log_dict, experiment)
         log_opf(val_graphs, last_out, y_nodes,experiment)
 
-    
     if plot:
         plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
         plot_results(valid_networks, val_graphs, last_out, y_nodes, constrained_networks, errors_network, case_name, title, save_path)
