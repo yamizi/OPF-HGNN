@@ -8,11 +8,11 @@ from runs.diff_distribution import run_case
 parser = get_parser()
 
 def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30","case118"], 
-        nb_train = 8000,nb_val = 2000, dataset_type="y_no_OPF", device="cuda", scale=0):
+        nb_train = 8000,nb_val = 2000, dataset_type="y_OPF", device="cuda", scale=0):
 
     for mutation in mutations:
         for case in cases:
-            experiment = init_comet({"case":case, "mutation":mutation},"test_perf")
+            experiment = init_comet({"case":case, "mutation":mutation},"test_perf_v2")
             training_case=[[case,nb_train,0.7,[mutation]]]
             validation_case=[case,nb_val,0.7,[mutation]]
             path = "./output/test_perf/"+mutation+"/"+case
