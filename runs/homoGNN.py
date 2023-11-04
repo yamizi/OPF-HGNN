@@ -16,8 +16,8 @@ from utils.plot import plot_losses, plot_results
 import json
 
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
-             validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True,
-             save_path="./output", title="",dataset_type="y_no_OPF",
+             validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True, scale=False,
+             save_path="./output", title="",dataset_type="y_OPF",
              max_epochs=200, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5):
     
     uniqueid = uuid.uuid4()
@@ -28,19 +28,12 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
     val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=None,
                                                mutation_rate=mutation_rate, uniqueid="{}/val".format(uniqueid),
-                                               hetero=False,
+                                               hetero=False, scale=scale,
                                                dataset_type=dataset_type, experiment=experiment, mutations=mutations)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
     
     
-    
-    
-    G = [create_nxgraph(net,multi=False,calc_branch_impedances=True) for net in valid_networks.get("mutants")]
-    bus_features = [val_graph[0]["bus"].x for val_graph in val_graphs]
-    load_features = [val_graph[0]["load"].x for val_graph in val_graphs]
-    ext_grid_features = [val_graph[0]["ext_grid"].x for val_graph in val_graphs]
-    gen_features = [val_graph[0]["gen"].x for val_graph in val_graphs]
-        
+
 
     #bus_features = [val_graph.dataframes.get("bus") for val_graph in val_graphs]
     
@@ -58,6 +51,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
         train_graph, _, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
+                                             scaler=scale,
                                                mutation_rate=mutation_rate, uniqueid="{}/train".format(uniqueid),
                                                dataset_type=dataset_type, experiment=experiment, mutations=mutations)
     

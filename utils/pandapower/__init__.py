@@ -152,30 +152,48 @@ class PandaPowerGraph(InMemoryDataset):
         bus_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
         bus_df.drop(columns=["name"],inplace=True)
         bus_df["n_id"] = bus_df.index
-        
+        merged_bus_df = bus_df.copy(True)
+
         node="gen"
         gen_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
         gen_df["has_gen"] = 1
         gen_df.drop(columns=["name"],inplace=True)
-        merged_bus_df = pd.merge(bus_df,gen_df,left_on="n_id",right_on="bus",how="left")
+
+        if len(gen_df):
+            merged_bus_df = pd.merge(merged_bus_df,gen_df,left_on="n_id",right_on="bus",how="left", suffixes=("","_gen"))
 
         node="ext_grid"
         ext_grid_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
         ext_grid_df["has_grid"] = 1
         ext_grid_df.drop(columns=["name"],inplace=True)
-        merged_bus_df = pd.merge(merged_bus_df,gen_df,left_on="n_id",right_on="bus",how="left")
+        if len(ext_grid_df):
+            merged_bus_df = pd.merge(merged_bus_df,gen_df,left_on="n_id",right_on="bus",how="left", suffixes=("","_ext_grid"))
 
         node="sgen"
         sgen_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
         sgen_df["has_sgen"] = 1
         sgen_df.drop(columns=["name"],inplace=True)
-        merged_bus_df = pd.merge(merged_bus_df,sgen_df,left_on="n_id",right_on="bus",how="left")
+        if len(sgen_df):
+            merged_bus_df = pd.merge(merged_bus_df,sgen_df,left_on="n_id",right_on="bus",how="left", suffixes=("","_sgen"))
+
         merged_bus_df = merged_bus_df.fillna(0)
+        x = merged_bus_df.drop(columns=['p_mw', 'q_mvar',"p_mw_x","p_mw_y","q_mvar_gen","p_mw_x_ext_grid","p_mw_y_ext_grid","q_mvar_ext_grid"])
 
-        print(merged_bus_df)
+        scaler = StandardScaler()
+        one_hot = pd.get_dummies(x).dropna(axis=1).values.astype("float32")
+        if scale:
+            one_hot = scaler.fit_transform(one_hot)
+        x_dict = dict(zip(range(len(one_hot)), one_hot.tolist()))
+        y = np.concatenate([pd.merge(getattr(network,node)[["bus"]],getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)[["bus","p_mw","q_mvar"]].values for node in ["ext_grid","gen","sgen"]])
+        y_dict = dict(zip(y[:, 0].astype(int), y[:, 1:3].tolist()))
+        y_dict_default = dict(zip(list(range(len(bus_df))), [[np.nan, np.nan]] * len(bus_df)))
+        nxgraph = create_nxgraph(network,multi=False,calc_branch_impedances=True)
+        nx.set_node_attributes(nxgraph, x_dict, "x")
+        nx.set_node_attributes(nxgraph, {**y_dict_default,**y_dict}, "y")
+        graph = from_networkx(nxgraph)
 
-        create_nxgraph(network,multi=False,calc_branch_impedances=True)
-        pass
+        dataframes = {"bus":x, "y":y_dict}
+        return graph, dataframes, {"bus":scaler}
 
     def build_hetero_data(self,network, include_res=True, opf_as_y=True, scale=True):
         
