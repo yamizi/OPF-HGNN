@@ -43,7 +43,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
     train_graphs = []
-    train_networks = []
+    train_networks = {"mutants":[]}
     nb_graphs = 0
     train_case_name = ""
     for training_case in training_cases:
@@ -54,7 +54,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
                         mutations=mutations, **common_params)
     
         train_graphs += train_graph
-        train_networks += train_network["mutants"]
+        train_networks["mutants"] += train_network["mutants"]
         nb_graphs+=nb_graph
 
     if filter:
@@ -74,13 +74,16 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs).to(device)
     model = to_hetero(model, data.metadata(), aggr='sum')
     
-    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,
+    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses = train_opf(model,train_loader,
                                             val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
     
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
-    log_dict = {"constraint":constrained_networks,"train_losses":train_losses, "val_losses":val_losses, "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}
+    log_dict = {"constraint":constrained_networks,"train_losses":train_losses, "val_losses":val_losses, 
+                "b_train_losses":b_train_losses, "b_val_losses":b_val_losses,
+                "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}
+    
     with open(save_path+"/losses.json", "w") as outfile:
         json.dump(log_dict, outfile)
     
@@ -96,12 +99,12 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
 if __name__ == "__main__":
 
-    training_case=[["case9",800,0.7,["cost"]]]
-    validation_case=["case9",200,0.7,["cost"]]
+    training_case=[["case9",8,0.7,["cost"]]]
+    validation_case=["case9",2,0.7,["cost"]]
     
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
-            title="generalization cost", save_path="./output/case9_9", max_epochs=200, experiment=experiment,
+            title="generalization cost", save_path="./output/case9_9", max_epochs=2, experiment=experiment,
             scale=False, filter=True)
     plt.show()
     exit()
