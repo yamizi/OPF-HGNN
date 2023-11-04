@@ -29,7 +29,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         train_loss = 0
         
         for batch in train_loader:
-            batch = batch.to(device)
+            batch = batch
             out, loss, losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn)
             train_loss += loss
 

@@ -19,50 +19,43 @@ from utils.io import JSONEncoder
 from utils.pandapower.mutations import mutate_costs, mutate_loads
 import itertools
 
+from pandapower.topology.create_graph import create_nxgraph
+import networkx as nx
+from torch_geometric.utils.convert import to_networkx, from_networkx
+
 def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     print("clearing duplicates")
     train_graphs_c = deepcopy(train_graphs)
-    train_networks_c = deepcopy(train_graphs)
 
     val_str = [val_graph.data.to_dict().__str__() for val_graph in val_graphs]
     train_str = [train_graph.data.to_dict().__str__() for train_graph in train_graphs_c]
 
     comparisons = np.array([a==b for (a,b) in itertools.product(val_str, train_str)]).reshape(len(val_str),len(train_str))
-    nb_duplicates = np.sum(comparisons)
-    if nb_duplicates>0:
-        print("Found ",nb_duplicates, "duplicates")
 
-    keep = (~comparisons.any(0)).nonzero()[0].tolist()
-    train_graphs = [train_graphs_c[a] for a in keep]
-    train_networks = [train_networks_c[a] for a in keep]
+    nb_duplicates = np.sum(comparisons)
 
     return train_graphs, train_networks, val_graphs, valid_networks
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=True,
-                  mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True):
+                  mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True,
+                  hetero=True, device="cpu"):
     print("building dataset with {nbsamples} variants")
 
     case_method = getattr(pp.networks, case)
     original_network = case_method()
     networks = {"original":original_network, "mutants":[]}
     network = deepcopy(original_network)
-    graph = PandaPowerGraph(network,scale=scale)
     uniqueid = uuid.uuid4() if uniqueid is None else uniqueid
     path = "."
 
     if save_dataframes is not None:
+        graph = PandaPowerGraph(network,scale=scale, hetero=hetero)
         path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
         os.makedirs(path, exist_ok=True)
         graph.export(path+"/raw")
 
-    transforms = [T.ToUndirected(merge=True)]
+    transforms = [T.ToUndirected(merge=True), T.ToDevice(device)]
     graphs = []
-
-    if nbsamples==0:
-        pp.runopp(network, delta=1e-16)
-        graph_y = PandaPowerGraph(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms),scale=scale)
-        return [graph_y]
     
     for sample_id in range(nbsamples):
         network = deepcopy(original_network)
@@ -89,13 +82,13 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
         networks["mutants"].append(network)
         if dataset_type=="y_no_OPF":
             graph_y = PandaPowerGraph(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms),scale=scale)
+                            transform=T.Compose(transforms),scale=scale, hetero=hetero)
         elif dataset_type=="y_OPF":
             graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms),scale=scale)
+                            transform=T.Compose(transforms),scale=scale, hetero=hetero)
         if dataset_type=="no_y_OPF":
             graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
-                            transform=T.Compose(transforms),scale=scale)
+                            transform=T.Compose(transforms),scale=scale, hetero=hetero)
             
         if save_dataframes is not None:
             path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
@@ -110,18 +103,25 @@ class PandaPowerGraph(InMemoryDataset):
     def __init__(self, network: pandapowerNet, preprocess: Optional[str] = None,
                  transform: Optional[Callable] = None,scale=True,
                  pre_transform: Optional[Callable] = None,
-                 include_res:bool=True, opf_as_y:bool=True):
+                 include_res:bool=True, opf_as_y:bool=True, hetero=True):
         
         preprocess = None if preprocess is None else preprocess.lower()
         self.preprocess = preprocess
         assert self.preprocess in [None, 'metapath2vec', 'transe']
         super().__init__(None, transform, pre_transform)
 
-        hetero_data, edges, dataframes, scalers= build_hetero_data(network, include_res, opf_as_y, scale=scale)
-        self.data, self.slices = hetero_data, None
-        self.scalers = scalers
-        self.dataframes = dataframes
-        self.edges = edges
+        self.node_types = ["bus","load","sgen","gen","shunt","ext_grid","line","trafo","trafo3w","impedance","xward"]
+        if hetero:
+            hetero_data, edges, dataframes, scalers= self.build_hetero_data(network, include_res, opf_as_y, scale=scale)
+            self.data, self.slices = hetero_data, None
+            self.scalers = scalers
+            self.dataframes = dataframes
+            self.edges = edges
+        else:
+            homo_data, dataframes, scalers = self.build_homo_data(network, include_res, opf_as_y, scale=scale)
+            self.data, self.slices = homo_data, None
+            self.scalers = scalers
+            self.dataframes = dataframes
 
     @property
     def num_outputs(self) -> int:
@@ -146,81 +146,111 @@ class PandaPowerGraph(InMemoryDataset):
                 for (sheetname, sheet) in self.dataframes.items():
                     sheet.to_excel(f,sheet_name=sheetname)
 
-def build_hetero_data(network, include_res=True, opf_as_y=True, scale=True):
-     
-    node_types = ["bus","load","sgen","gen","shunt","ext_grid","line","trafo","trafo3w","impedance","xward"]
-    costs = network.poly_cost
-    data = HeteroData()
-    edges = {}
-    dataframes = {}
-    scalers = {}
-    for node in node_types:
-        edges_ = []
-        edges_from = []
-        edges_to = []
-        edges_to2 = []
 
-        merged_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
-        if len(merged_df)==0:
-            continue
-        if opf_as_y and node in ["gen","sgen","ext_grid"] and len(getattr(network,"res_"+node))>0:
-            y = ["p_mw","q_mvar"]
-            if include_res:
-                if node=="ext_grid":
-                    merged_df.drop(columns=["p_mw","q_mvar"],inplace=True)
-                if node in ["sgen","gen"]:
-                    merged_df.drop(columns=["va_degree","vm_pu_y", "p_mw_y","q_mvar"],inplace=True)
-                    # y = ["p_mw","q_mvar", "va_degree"]
-            pf = getattr(network,"res_"+node)[y]
-            merged_df[["min_p_mw","max_p_mw","min_q_mvar","max_q_mvar"]]
-            data[node].boundaries = torch.Tensor(merged_df[["min_p_mw","max_p_mw","min_q_mvar","max_q_mvar"]].values)
-            data[node].y =torch.Tensor(pf.values)
+    def build_homo_data(self,network, include_res=True, opf_as_y=True, scale=True):
+        node="bus"
+        bus_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
+        bus_df.drop(columns=["name"],inplace=True)
+        bus_df["n_id"] = bus_df.index
+        
+        node="gen"
+        gen_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
+        gen_df["has_gen"] = 1
+        gen_df.drop(columns=["name"],inplace=True)
+        merged_bus_df = pd.merge(bus_df,gen_df,left_on="n_id",right_on="bus",how="left")
 
-            node_cost = costs[costs["et"]==node]
-            node_cost.index = node_cost.element
-            merged_df = pd.merge(merged_df,node_cost,how="left",right_index=True, left_index=True).drop(columns=["et","element"])
-            print()
-        merged_df.drop(columns=["name"],inplace=True)   
-        scaler = StandardScaler()
-        one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
-        if scale:
-            one_hot = scaler.fit_transform(one_hot)
-        data[node].x =torch.Tensor(one_hot)
-        scalers[node] = scaler
+        node="ext_grid"
+        ext_grid_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
+        ext_grid_df["has_grid"] = 1
+        ext_grid_df.drop(columns=["name"],inplace=True)
+        merged_bus_df = pd.merge(merged_bus_df,gen_df,left_on="n_id",right_on="bus",how="left")
 
-        if "from_bus" in merged_df.columns:
-            edges_from = merged_df["from_bus"].tolist()
-            merged_df.drop(columns=["from_bus"],inplace=True)
-            data['bus','to',node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()])
- 
-        if "to_bus" in merged_df.columns:
-            edges_to = merged_df["to_bus"].tolist()
-            merged_df.drop(columns=["to_bus"],inplace=True)
-            data[node,'to','bus'].edge_index = torch.LongTensor([merged_df.index.tolist(),edges_to])
+        node="sgen"
+        sgen_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
+        sgen_df["has_sgen"] = 1
+        sgen_df.drop(columns=["name"],inplace=True)
+        merged_bus_df = pd.merge(merged_bus_df,sgen_df,left_on="n_id",right_on="bus",how="left")
+        merged_bus_df = merged_bus_df.fillna(0)
 
-        if "hv_bus" in merged_df.columns:
-            edges_from = merged_df["hv_bus"].tolist()
-            merged_df.drop(columns=["hv_bus"],inplace=True)
-            data['bus','to',node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()])
+        print(merged_bus_df)
 
-            edges_to = merged_df["lv_bus"].tolist()
-            merged_df.drop(columns=["lv_bus"],inplace=True)
-            data[node,'to','bus'].edge_index = torch.LongTensor([merged_df.index.tolist(),edges_to])
+        create_nxgraph(network,multi=False,calc_branch_impedances=True)
+        pass
 
-        if "mv_bus" in merged_df.columns:
-            edges_to2 = merged_df["mv_bus"].tolist()
-            merged_df.drop(columns=["mv_bus"],inplace=True)
-            data[node,'to','bus'].edge_index = torch.LongTensor([merged_df.index.tolist()+merged_df.index.tolist(),edges_to+edges_to2])
+    def build_hetero_data(self,network, include_res=True, opf_as_y=True, scale=True):
+        
+        node_types = self.node_types
+        costs = network.poly_cost
+        data = HeteroData()
+        edges = {}
+        dataframes = {}
+        scalers = {}
+        for node in node_types:
+            edges_ = []
+            edges_from = []
+            edges_to = []
+            edges_to2 = []
 
-        if "bus" in merged_df.columns:
-            edges_ = merged_df["bus"].tolist()
-            merged_df.drop(columns=["bus"],inplace=True)
-            data['bus','to',node].edge_index = torch.LongTensor([edges_, merged_df.index.tolist()])
+            merged_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
+            if len(merged_df)==0:
+                continue
+            if opf_as_y and node in ["gen","sgen","ext_grid"] and len(getattr(network,"res_"+node))>0:
+                y = ["p_mw","q_mvar"]
+                if include_res:
+                    if node=="ext_grid":
+                        merged_df.drop(columns=["p_mw","q_mvar"],inplace=True)
+                    if node in ["sgen","gen"]:
+                        merged_df.drop(columns=["va_degree","vm_pu_y", "p_mw_y","q_mvar"],inplace=True)
+                pf = getattr(network,"res_"+node)[y]
+                merged_df[["min_p_mw","max_p_mw","min_q_mvar","max_q_mvar"]]
+                data[node].boundaries = torch.Tensor(merged_df[["min_p_mw","max_p_mw","min_q_mvar","max_q_mvar"]].values)
+                data[node].y =torch.Tensor(pf.values)
 
-        dataframes[node] = merged_df
-        edges[node] = [edges_, edges_from, edges_to, edges_to2]
-            
+                node_cost = costs[costs["et"]==node]
+                node_cost.index = node_cost.element
+                merged_df = pd.merge(merged_df,node_cost,how="left",right_index=True, left_index=True).drop(columns=["et","element"])
+                print()
+            merged_df.drop(columns=["name"],inplace=True)   
+            scaler = StandardScaler()
+            one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
+            if scale:
+                one_hot = scaler.fit_transform(one_hot)
+            data[node].x =torch.Tensor(one_hot)
+            scalers[node] = scaler
 
-        #node, len(getattr(network,node).columns), len(merged_df.columns))
+            if "from_bus" in merged_df.columns:
+                edges_from = merged_df["from_bus"].tolist()
+                merged_df.drop(columns=["from_bus"],inplace=True)
+                data['bus','to',node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()])
+    
+            if "to_bus" in merged_df.columns:
+                edges_to = merged_df["to_bus"].tolist()
+                merged_df.drop(columns=["to_bus"],inplace=True)
+                data[node,'to','bus'].edge_index = torch.LongTensor([merged_df.index.tolist(),edges_to])
 
-    return data, edges, dataframes, scalers
+            if "hv_bus" in merged_df.columns:
+                edges_from = merged_df["hv_bus"].tolist()
+                merged_df.drop(columns=["hv_bus"],inplace=True)
+                data['bus','to',node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()])
+
+                edges_to = merged_df["lv_bus"].tolist()
+                merged_df.drop(columns=["lv_bus"],inplace=True)
+                data[node,'to','bus'].edge_index = torch.LongTensor([merged_df.index.tolist(),edges_to])
+
+            if "mv_bus" in merged_df.columns:
+                edges_to2 = merged_df["mv_bus"].tolist()
+                merged_df.drop(columns=["mv_bus"],inplace=True)
+                data[node,'to','bus'].edge_index = torch.LongTensor([merged_df.index.tolist()+merged_df.index.tolist(),edges_to+edges_to2])
+
+            if "bus" in merged_df.columns:
+                edges_ = merged_df["bus"].tolist()
+                merged_df.drop(columns=["bus"],inplace=True)
+                data['bus','to',node].edge_index = torch.LongTensor([edges_, merged_df.index.tolist()])
+
+            dataframes[node] = merged_df
+            edges[node] = [edges_, edges_from, edges_to, edges_to2]
+                
+
+            #node, len(getattr(network,node).columns), len(merged_df.columns))
+
+        return data, edges, dataframes, scalers

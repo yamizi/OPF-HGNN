@@ -29,11 +29,13 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     else:
         device="cpu"
 
+    common_params = {"dataset_type":dataset_type,"save_dataframes":save_path,"experiment":experiment,
+                     "scale":scale, "device":device }
+    
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
-    val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
+    val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,
                                                mutation_rate=mutation_rate, uniqueid="{}/val".format(uniqueid),
-                                               dataset_type=dataset_type, experiment=experiment, 
-                                               mutations=mutations, scale=scale)
+                                               mutations=mutations, **common_params)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
@@ -44,9 +46,9 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     for training_case in training_cases:
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
-        train_graph, train_network, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
-                                      scale=scale,mutation_rate=mutation_rate, uniqueid="{}/train".format(uniqueid),
-                                               dataset_type=dataset_type, experiment=experiment, mutations=mutations)
+        train_graph, train_network, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,
+                        mutation_rate=mutation_rate, uniqueid="{}/train".format(uniqueid),
+                        mutations=mutations, **common_params)
     
         train_graphs += train_graph
         train_networks += train_network["mutants"]
