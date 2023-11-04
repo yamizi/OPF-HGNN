@@ -54,7 +54,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
         os.makedirs(path, exist_ok=True)
         graph.export(path+"/raw")
 
-    transforms = [T.ToUndirected(merge=True), T.ToDevice(device)]
+    transforms = [T.ToUndirected(merge=True), T.ToDevice(device)] if hetero else [T.ToDevice(device)]
     graphs = []
     
     for sample_id in range(nbsamples):
@@ -183,10 +183,12 @@ class PandaPowerGraph(InMemoryDataset):
         one_hot = pd.get_dummies(x).dropna(axis=1).values.astype("float32")
         if scale:
             one_hot = scaler.fit_transform(one_hot)
-        x_dict = dict(zip(range(len(one_hot)), one_hot.tolist()))
+        #x_dict = dict(zip(range(len(one_hot)), one_hot.tolist()))
+        x_dict = dict(zip(range(len(one_hot)), torch.Tensor(one_hot)))
         y = np.concatenate([pd.merge(getattr(network,node)[["bus"]],getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)[["bus","p_mw","q_mvar"]].values for node in ["ext_grid","gen","sgen"]])
-        y_dict = dict(zip(y[:, 0].astype(int), y[:, 1:3].tolist()))
-        y_dict_default = dict(zip(list(range(len(bus_df))), [[np.nan, np.nan]] * len(bus_df)))
+        #y_dict = dict(zip(y[:, 0].astype(int), y[:, 1:3].tolist()))
+        y_dict = dict(zip(y[:, 0].astype(int), torch.Tensor(y[:, 1:3])))
+        y_dict_default = dict(zip(list(range(len(bus_df))), [torch.Tensor([np.nan, np.nan])] * len(bus_df)))
         nxgraph = create_nxgraph(network,multi=False,calc_branch_impedances=True)
         nx.set_node_attributes(nxgraph, x_dict, "x")
         nx.set_node_attributes(nxgraph, {**y_dict_default,**y_dict}, "y")
