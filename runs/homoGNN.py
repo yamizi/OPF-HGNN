@@ -31,18 +31,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
                                                hetero=False, scale=scale,
                                                dataset_type=dataset_type, experiment=experiment, mutations=mutations)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
-    
-    
 
-
-    #bus_features = [val_graph.dataframes.get("bus") for val_graph in val_graphs]
-    
-    print(G[0])
-
-    return
-    
-    
-    val_loader = DataLoader([g[0] for g in val_graphs], batch_size=train_batch_size)
+    val_loader = DataLoader([g[0] for g in val_graphs], batch_size=val_batch_size)
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
     train_graphs = []
@@ -60,7 +50,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     
     print("Correct training graphs {}/{}".format(len(train_graphs),nb_graphs))
     experiment.log_metric("nb_valid_graphs", len(train_graphs))
-    train_loader = DataLoader([g[0] for g in train_graphs], batch_size=val_batch_size)
+    train_loader = DataLoader([g[0] for g in train_graphs], batch_size=train_batch_size)
 
     if len(train_graphs)==0:
         return 

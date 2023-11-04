@@ -63,8 +63,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     print("Correct training graphs {}/{}".format(len(train_graphs),nb_graphs))
     experiment.log_metric("nb_train_graphs", len(train_graphs))
 
-    train_loader = DataLoader([g[0] for g in train_graphs], batch_size=val_batch_size)
-    val_loader = DataLoader([g[0] for g in val_graphs], batch_size=train_batch_size)
+    train_loader = DataLoader([g[0] for g in train_graphs], batch_size=train_batch_size)
+    val_loader = DataLoader([g[0] for g in val_graphs], batch_size=val_batch_size)
     
     if len(train_graphs)==0:
         return 
@@ -99,10 +99,12 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
 if __name__ == "__main__":
 
-    training_case=[["case9",800,0.7,["load_relative"]]]
-    validation_case=["case9",200,0.7,["load_relative"]]
+    case="case14"
+    mutation="load_relative"
+    training_case=[[case,800,0.7,[mutation]]]
+    validation_case=[case,200,0.7,[mutation]]
     
-    experiment = init_comet({"cases":"case9"})
+    experiment = init_comet({"case":case,"mutation":mutation})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
             title="generalization load_relative", save_path="./output/case9_9", max_epochs=100, experiment=experiment,
             scale=False, filter=True)
