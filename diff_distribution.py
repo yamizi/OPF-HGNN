@@ -17,7 +17,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
              validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True,
              save_path="./output", title="",dataset_type="y_OPF",scale=False,
              max_epochs=200, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5,
-             device="cpu", filter=False):
+             device="cpu", filter=True):
     
     uniqueid = uuid.uuid4()
     if experiment is not None:
@@ -51,9 +51,6 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         train_graphs += train_graph
         train_networks += train_network["mutants"]
         nb_graphs+=nb_graph
-    
-    print("Correct training graphs {}/{}".format(len(train_graphs),nb_graphs))
-    experiment.log_metric("nb_valid_graphs", len(train_graphs))
 
     if filter:
         train_graphs, train_networks, val_graphs, valid_networks = clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks)
@@ -94,8 +91,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
 if __name__ == "__main__":
 
-    training_case=[["case9",3200,0.7,["cost"]]]
-    validation_case=["case9",800,0.7,["cost"]]
+    training_case=[["case9",800,0.7,["cost"]]]
+    validation_case=["case9",200,0.7,["cost"]]
     
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
