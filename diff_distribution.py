@@ -17,7 +17,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
              validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True,
              save_path="./output", title="",dataset_type="y_OPF",scale=False,
              max_epochs=200, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5,
-             device="cpu"):
+             device="cpu", filter=False):
     
     uniqueid = uuid.uuid4()
     if experiment is not None:
@@ -33,7 +33,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=save_path,
                                                mutation_rate=mutation_rate, uniqueid="{}/val".format(uniqueid),
                                                dataset_type=dataset_type, experiment=experiment, 
-                                               mutations=mutations, scale=scale, device=device)
+                                               mutations=mutations, scale=scale)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
@@ -45,7 +45,6 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
         train_graph, train_network, _, _ = build_dataset(train_case_name,nbsamples=nb_graph,save_dataframes=save_path,
                                       scale=scale,mutation_rate=mutation_rate, uniqueid="{}/train".format(uniqueid),
-                                               device=device,
                                                dataset_type=dataset_type, experiment=experiment, mutations=mutations)
     
         train_graphs += train_graph
@@ -55,7 +54,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     print("Correct training graphs {}/{}".format(len(train_graphs),nb_graphs))
     experiment.log_metric("nb_valid_graphs", len(train_graphs))
 
-    train_graphs, train_networks, val_graphs, valid_networks = clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks)
+    if filter:
+        train_graphs, train_networks, val_graphs, valid_networks = clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks)
 
     train_loader = DataLoader([g[0] for g in train_graphs], batch_size=val_batch_size)
     val_loader = DataLoader([g[0] for g in val_graphs], batch_size=train_batch_size)
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
             title="generalization cost", save_path="./output/case9_9", max_epochs=200, experiment=experiment,
-            scale=False)
+            scale=False, filter=True)
     plt.show()
     exit()
 

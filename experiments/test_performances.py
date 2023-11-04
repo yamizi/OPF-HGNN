@@ -1,30 +1,13 @@
 import sys
+from utils.io import get_parser
 sys.path.append(".")
 
 from utils.logging import init_comet
 from diff_distribution import run_case
-import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-m', '--mutations',
-                        help="Mutations separated by +",
-                        default="cost+load+load_relative",
-                        type=str) 
+parser = get_parser()
 
-parser.add_argument('-c', '--cases',
-                        help="Cases separated by +",
-                        default="case9+case14+case30+case118",
-                        type=str) 
-
-parser.add_argument('-d', '--device',
-                        help="Device (cpu or cuda)",
-                        default="cuda",
-                        type=str) 
-
-parser.add_argument('-t','--nb_train', help="Number of graphs used in training", type=int, default=8000)
-parser.add_argument('-v','--nb_val', help="Number of graphs used in validation", type=int, default=2000)
-
-def run(mutations = ["cost", "load","load_relative"],cases = ["case9","case14","case30","case118"], 
+def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30","case118"], 
         nb_train = 8000,nb_val = 2000, dataset_type="y_no_OPF", device="cuda"):
 
     for mutation in mutations:

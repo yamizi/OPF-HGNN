@@ -55,7 +55,7 @@ def mutate_loads(network, min_p=0, max_p=0,min_q=0, max_q=0, clip=False, mutatio
     mask = np.random.choice(len(loads),(int(len(loads)*mutation_rate)),replace=False)
     masked_loads = np.array(loads)[mask]
     
-    print("updating loads", masked_loads)
+    #print("updating loads", masked_loads)
     if relative:
         masked_loads[:,1] = (masked_loads[:,1] + 1) * network.load.loc[masked_loads[:,0].astype(int),"p_mw"]
         masked_loads[:,2] = (masked_loads[:,2]*reactive_weight + 1) * network.load.loc[masked_loads[:,0].astype(int),"q_mvar"]
