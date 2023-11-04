@@ -6,6 +6,7 @@ from torch_geometric.data import (
 from pandapower.auxiliary import pandapowerNet
 import pandapower as pp
 import torch
+import numpy as np
 import pandas as pd
 from copy import deepcopy
 from sklearn.preprocessing import StandardScaler
@@ -16,27 +17,17 @@ import os
 from pandapower.optimal_powerflow import OPFNotConverged
 from utils.io import JSONEncoder
 from utils.pandapower.mutations import mutate_costs, mutate_loads
-
+import itertools
 
 def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     print("clearing duplicates")
     train_graphs_c = deepcopy(train_graphs)
-    # TODO
-    for i, val_graph in enumerate(val_graphs):
-        
-        load = val_graph[0]["load"].x
-        gen = val_graph[0]["gen"].x
-        ext_grid = val_graph[0]["ext_grid"].x
-        for j, train_graph in enumerate(train_graphs_c):
-            load_train = train_graph[0]["load"].x
-            gen_train = train_graph[0]["gen"].x
-            ext_grid_train = train_graph[0]["ext_grid"].x
 
-            if(load.equals(load_train) and gen.equals(gen_train) and ext_grid.equals(ext_grid_train)):
-                print("duplicate found at", i,j)
-                del train_graphs[j]
-                del train_networks[j]
-                
+    val_str = [val_graph.data.to_dict().__str__() for val_graph in val_graphs]
+    train_str = [train_graph.data.to_dict().__str__() for train_graph in train_graphs_c]
+
+    comparisons = [a==b for (a,b) in itertools.product(val_str, train_str)]
+    nb_duplicates = np.sum(comparisons)
 
     return train_graphs, train_networks, val_graphs, valid_networks
 
@@ -180,8 +171,8 @@ def build_hetero_data(network, include_res=True, opf_as_y=True, scale=True):
 
             node_cost = costs[costs["et"]==node]
             node_cost.index = node_cost.element
-            pd.merge(merged_df,node_cost,how="left",right_index=True, left_index=True).drop(columns=["et","element"])
-
+            merged_df = pd.merge(merged_df,node_cost,how="left",right_index=True, left_index=True).drop(columns=["et","element"])
+            print()
         merged_df.drop(columns=["name"],inplace=True)   
         scaler = StandardScaler()
         one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")

@@ -40,6 +40,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     train_graphs = []
     train_networks = []
     nb_graphs = 0
+    train_case_name = ""
     for training_case in training_cases:
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
@@ -70,8 +71,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     
     train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out = train_opf(model,train_loader,
                                             val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
-    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes,
-                                                        device=device)
+    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
     
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
@@ -91,8 +91,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
 if __name__ == "__main__":
 
-    training_case=[["case9",32,0.7,["cost"]]]
-    validation_case=["case9",8,0.7,["cost"]]
+    training_case=[["case9",3200,0.7,["cost"]]]
+    validation_case=["case9",800,0.7,["cost"]]
     
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
