@@ -13,6 +13,8 @@ def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30"
 
     for mutation_src in mutations:
         for mutation_trgt in mutations:
+            if mutation_src==mutation_trgt:
+                continue
             for case in cases:
                 experiment = init_comet({"case":case, "mutation":mutation_trgt,"mutation_src":mutation_src},
                                         "test_gen_mutation_v1")
