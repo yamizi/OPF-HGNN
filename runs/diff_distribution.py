@@ -74,14 +74,14 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs).to(device)
     model = to_hetero(model, data.metadata(), aggr='sum')
     
-    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses = train_opf(model,train_loader,
+    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses, lr = train_opf(model,train_loader,
                                             val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
     
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
     log_dict = {"constraint":constrained_networks,"train_losses":train_losses, "val_losses":val_losses, 
-                "b_train_losses":b_train_losses, "b_val_losses":b_val_losses,
+                "b_train_losses":b_train_losses, "b_val_losses":b_val_losses,"learning_rate":lr,
                 "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}
     
     with open(save_path+"/losses.json", "w") as outfile:
@@ -99,12 +99,12 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
 if __name__ == "__main__":
 
-    training_case=[["case9",8,0.7,["cost"]]]
-    validation_case=["case9",2,0.7,["cost"]]
+    training_case=[["case9",800,0.7,["load_relative"]]]
+    validation_case=["case9",200,0.7,["load_relative"]]
     
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
-            title="generalization cost", save_path="./output/case9_9", max_epochs=2, experiment=experiment,
+            title="generalization load_relative", save_path="./output/case9_9", max_epochs=100, experiment=experiment,
             scale=False, filter=True)
     plt.show()
     exit()

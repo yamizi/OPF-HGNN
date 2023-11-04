@@ -15,8 +15,11 @@ def boundary_loss(boundaries,y):
     return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
-              device="cpu"):
+              device="cpu",decayRate = 0.1):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    milestones=[max_epochs//2,(max_epochs*3)//4]
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, gamma=decayRate)
+
     loss_fn = torch.nn.MSELoss() 
     loss_fn = relative_loss
 
@@ -26,14 +29,17 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
     val_losses = []
     val_losses_gen = []
     val_losses_ext_grid  = []
-    
+    learning_rate = []
 
     for epoch in range(0,max_epochs):
+        lr = lr_scheduler.get_last_lr()[0]
+        learning_rate.append(lr)
+
         train_loss = 0
         boundary_loss = 0
         for batch in train_loader:
             batch = batch
-            out, loss, losses, b_losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn)
+            out, loss, losses, b_losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn,lr_scheduler=lr_scheduler)
             train_loss += loss
             boundary_loss+= np.concatenate(b_losses,0).max()
 
@@ -80,9 +86,9 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         val_loss_ext_grid /= len(val_loader)
         val_losses_ext_grid.append(val_loss_ext_grid)
 
-    return train_losses, val_losses, val_losses_gen, val_losses_ext_grid, (out_all, val_losses_all), boundary_train_losses, boundary_val_losses
+    return train_losses, val_losses, val_losses_gen, val_losses_ext_grid, (out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
 
-def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None):
+def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None,lr_scheduler=None):
     model.train()
     optimizer.zero_grad()
     if loss_f is None:
@@ -114,6 +120,9 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
 
     loss.backward()
     optimizer.step()
+    if lr_scheduler is not None:
+        lr_scheduler.step()
+
     return out, float(loss), losses, boundary_losses
 
 
