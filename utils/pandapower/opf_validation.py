@@ -22,7 +22,7 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
 
     run_valid = True
     run_errors = pp.diagnostic(network, report_style="compact")
-    if run_errors != {} and list(run_errors.keys())=='impedance_values_close_to_zero':
+    if run_errors != {} and list(run_errors.keys())!=['impedance_values_close_to_zero']:
         run_valid = False
         print(run_errors)
     
