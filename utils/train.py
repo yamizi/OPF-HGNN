@@ -18,7 +18,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
               device="cpu",decayRate = 0.1):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     milestones=[max_epochs//2,(max_epochs*3)//4]
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, gamma=decayRate)
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones,gamma=decayRate)
 
     loss_fn = torch.nn.MSELoss() 
     loss_fn = relative_loss
@@ -39,10 +39,11 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         boundary_loss = 0
         for batch in train_loader:
             batch = batch
-            out, loss, losses, b_losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn,lr_scheduler=lr_scheduler)
+            out, loss, losses, b_losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn)
             train_loss += loss
             boundary_loss+= np.concatenate(b_losses,0).max()
 
+        lr_scheduler.step()
         train_loss /= len(train_loader)
         boundary_loss /= len(train_loader)
 
@@ -88,7 +89,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
 
     return train_losses, val_losses, val_losses_gen, val_losses_ext_grid, (out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
 
-def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None,lr_scheduler=None):
+def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None):
     model.train()
     optimizer.zero_grad()
     if loss_f is None:
@@ -120,9 +121,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
 
     loss.backward()
     optimizer.step()
-    if lr_scheduler is not None:
-        lr_scheduler.step()
-
+    
     return out, float(loss), losses, boundary_losses
 
 
