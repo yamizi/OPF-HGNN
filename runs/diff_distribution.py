@@ -24,6 +24,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     uniqueid = uuid.uuid4()
     if experiment is not None:
         experiment.log_parameters({"uniqueid":uniqueid, "max_epochs":max_epochs,"dataset_type":dataset_type,
+                                   "scale":scale,
                             "save_path":save_path,"title":title,"y_nodes":y_nodes,"plot":plot,"device":device})
     
     if torch.cuda.is_available() and "cuda" in device:
