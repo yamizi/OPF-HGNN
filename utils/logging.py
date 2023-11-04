@@ -1,4 +1,4 @@
-from appconfig import COMET_APIKEY
+from utils.appconfig import COMET_APIKEY
 from comet_ml import Experiment
 import time
 import torch

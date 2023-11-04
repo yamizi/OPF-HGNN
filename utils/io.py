@@ -26,5 +26,6 @@ def get_parser():
 
     parser.add_argument('-t','--nb_train', help="Number of graphs used in training", type=int, default=800)
     parser.add_argument('-v','--nb_val', help="Number of graphs used in validation", type=int, default=200)
+    parser.add_argument('-s','--scale', help="Scaling features", type=int, default=0)
 
     return parser
