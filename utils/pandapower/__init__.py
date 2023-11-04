@@ -22,12 +22,19 @@ import itertools
 def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     print("clearing duplicates")
     train_graphs_c = deepcopy(train_graphs)
+    train_networks_c = deepcopy(train_graphs)
 
     val_str = [val_graph.data.to_dict().__str__() for val_graph in val_graphs]
     train_str = [train_graph.data.to_dict().__str__() for train_graph in train_graphs_c]
 
-    comparisons = [a==b for (a,b) in itertools.product(val_str, train_str)]
+    comparisons = np.array([a==b for (a,b) in itertools.product(val_str, train_str)]).reshape(len(val_str),len(train_str))
     nb_duplicates = np.sum(comparisons)
+    if nb_duplicates>0:
+        print("Found ",nb_duplicates, "duplicates")
+
+    keep = (~comparisons.any(0)).nonzero()[0].tolist()
+    train_graphs = [train_graphs_c[a] for a in keep]
+    train_networks = [train_networks_c[a] for a in keep]
 
     return train_graphs, train_networks, val_graphs, valid_networks
 
