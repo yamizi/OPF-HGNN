@@ -1,3 +1,5 @@
+import sys
+sys.path.append(".")
 import uuid
 from matplotlib import pyplot as plt
 

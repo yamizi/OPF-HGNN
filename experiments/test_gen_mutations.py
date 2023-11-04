@@ -4,7 +4,7 @@ from utils.io import get_parser
 
 
 from utils.logging import init_comet
-from diff_distribution import run_case
+from runs.diff_distribution import run_case
 
 parser = get_parser()
 
