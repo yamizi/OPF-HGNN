@@ -1,7 +1,8 @@
 import uuid
 from matplotlib import pyplot as plt
 import torch
-
+import sys
+sys.path.append(".")
 
 from utils.logging import init_comet, log_dict_series, log_opf
 from utils.pandapower import build_dataset, clear_duplicates
@@ -36,7 +37,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
                      "scale":scale, "device":device }
 
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
-    val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,save_dataframes=None,
+    val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,
                                                mutation_rate=mutation_rate, uniqueid="{}/val".format(uniqueid),
                                                hetero=False, mutations=mutations, **common_params)
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
@@ -71,12 +72,10 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         return 
     
     graph_y = train_graphs[0]
-    data = graph_y[0]
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs).to(device)
-    model = to_hetero(model, data.metadata(), aggr='sum')
 
     train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses, lr = train_opf(
-        model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
+        model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device, homo=False)
 
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
     

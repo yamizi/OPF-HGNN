@@ -15,7 +15,7 @@ def boundary_loss(boundaries,y):
     return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
-              device="cpu",decayRate = 0.1):
+              device="cpu",decayRate = 0.1, homo=True):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     milestones=[max_epochs//2,(max_epochs*3)//4]
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones,gamma=decayRate)
@@ -38,8 +38,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         train_loss = 0
         boundary_loss = 0
         for batch in train_loader:
-            batch = batch
-            out, loss, losses, b_losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn)
+            out, loss, losses, b_losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn, homo)
             train_loss += loss
             boundary_loss+= np.concatenate(b_losses,0).max()
 
@@ -89,7 +88,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
 
     return train_losses, val_losses, val_losses_gen, val_losses_ext_grid, (out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
 
-def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None):
+def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None, homo=True):
     model.train()
     optimizer.zero_grad()
     if loss_f is None:
@@ -100,23 +99,42 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     if isinstance(mask_node,str):
         mask_node = [mask_node]
 
-    out = model(data.x_dict, data.edge_index_dict)
     loss = 0
     losses = []
     boundary_losses = []
-    for i, node in enumerate(feature_node):
-        label = data[node].y
-        output = out[node]
+
+    if homo:
+        out = model(data.x_dict, data.edge_index_dict)
+        
+        for i, node in enumerate(feature_node):
+            label = data[node].y
+            output = out[node]
+            if mask_node is not None:
+                mask = data[mask_node[i]].train_mask
+                label = label[mask_node[i]]
+                output = output[mask_node[i]]
+
+            loss_label = loss_f(label, output)
+            loss_boundary = boundary_loss(data[node].boundaries, output)
+            loss_node = torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
+            losses.append(loss_label.cpu().detach().numpy())
+            boundary_losses.append(loss_boundary.cpu().detach().numpy())
+            loss += loss_node.mean()
+    else:
+        out =  model(data.x, data.edge_index)
+        mask = ~torch.isnan(data.y).any(1)
+        label = data.y[mask]
+        output = out[mask]
         if mask_node is not None:
             mask = data[mask_node[i]].train_mask
             label = label[mask_node[i]]
             output = output[mask_node[i]]
 
         loss_label = loss_f(label, output)
-        loss_boundary = boundary_loss(data[node].boundaries, output)
-        loss_node = torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
+        #loss_boundary = boundary_loss(data[node].boundaries, output)
+        loss_node = loss_label # torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
         losses.append(loss_label.cpu().detach().numpy())
-        boundary_losses.append(loss_boundary.cpu().detach().numpy())
+        #boundary_losses.append(loss_boundary.cpu().detach().numpy())
         loss += loss_node.mean()
 
     loss.backward()
