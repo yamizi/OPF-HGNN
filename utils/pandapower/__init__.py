@@ -177,7 +177,8 @@ class PandaPowerGraph(InMemoryDataset):
             merged_bus_df = pd.merge(merged_bus_df,sgen_df,left_on="n_id",right_on="bus",how="left", suffixes=("","_sgen"))
 
         merged_bus_df = merged_bus_df.fillna(0)
-        x = merged_bus_df.drop(columns=['p_mw', 'q_mvar',"p_mw_x","p_mw_y","q_mvar_gen","p_mw_x_ext_grid","p_mw_y_ext_grid","q_mvar_ext_grid"])
+        cols = [a for a in merged_bus_df.columns if (("q_mvar" in a) or ("p_mw" in a) ) and not ("min" in a or "max" in a)]
+        x = merged_bus_df.drop(columns=cols)
 
         scaler = StandardScaler()
         one_hot = pd.get_dummies(x).dropna(axis=1).values.astype("float32")
@@ -194,7 +195,7 @@ class PandaPowerGraph(InMemoryDataset):
         nx.set_node_attributes(nxgraph, {**y_dict_default,**y_dict}, "y")
         graph = from_networkx(nxgraph)
 
-        dataframes = {"bus":x, "y":y_dict}
+        dataframes = {"bus":x}
         return graph, dataframes, {"bus":scaler}
 
     def build_hetero_data(self,network, include_res=True, opf_as_y=True, scale=True):
