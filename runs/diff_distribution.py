@@ -89,7 +89,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     
     if experiment is not None:
         log_dict_series(log_dict, experiment)
-        log_opf(val_graphs, last_out, y_nodes,experiment)
+        log_opf(valid_networks,val_graphs, last_out, y_nodes,experiment)
 
     if plot:
         plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)

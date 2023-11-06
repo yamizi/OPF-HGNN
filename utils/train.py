@@ -15,9 +15,9 @@ def boundary_loss(boundaries,y):
     return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
-              device="cpu",decayRate = 0.1, hetero=True):
+              device="cpu",decayRate = 0.3, hetero=True):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    milestones=[max_epochs//2,(max_epochs*3)//4]
+    milestones=[max_epochs//2,(max_epochs*3)//4,(max_epochs*9)//10]
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones,gamma=decayRate)
 
     loss_fn = torch.nn.MSELoss(reduction="none")
@@ -69,7 +69,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
                 val_losses_all.append(losses)
                 out_all.append(last_out)
                 val_loss_gen += losses[0].mean()
-                val_loss_ext_grid += losses[1].mean()
+                val_loss_ext_grid += losses[1].mean() if len(losses)>1 else 0
 
         val_loss /= len(val_loader)
         boundary_loss /= len(val_loader)
@@ -182,7 +182,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
         mask = ~torch.isnan(data.y).any(1)
         label = data.y[mask]
         output = out[mask]
-        output = out
+        out = output
         if mask_node is not None:
             mask = data[mask_node[i]].train_mask
             label = label[mask_node[i]]

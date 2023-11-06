@@ -1,12 +1,15 @@
 import torch
 import pandapower as pp
 import numpy as np
+from itertools import chain
 
 def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
     valid_min_max = True
     boundaries = {}
     for node in y_nodes:
         values = output_nodes.get(node)
+        if len(values)==0:
+            continue
         valid_max = values[i*nb_gens[node]:(i+1)*nb_gens[node]].numpy() < getattr(network,node)[["max_p_mw","max_q_mvar"]].values
         getattr(network,node)[["max_p_mw","max_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]]
         
@@ -29,10 +32,17 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
     valid = run_valid & valid_min_max
     return valid, {"run":run_errors, **boundaries}
 
-def validate_opf(networks, val_graphs, outputs, y_nodes):
+def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True):
     (out_all, val_losses_all) = outputs
-    output_nodes = {node:torch.cat([e[node] for e in out_all],0) for node in y_nodes}
-    nb_gens = {node:len(networks.get("original")[node]) for node in y_nodes}
+    if hetero:
+        output_nodes = {node:torch.cat([e[node] for e in out_all],0) for node in y_nodes}
+        nb_gens = {node:len(networks.get("original")[node]) for node in y_nodes}
+    else:
+        bus_nodes = torch.cat([e for e in out_all],0)
+        y_nodes = ["ext_grid","gen","sgen"]
+        nb_gens = {node:len(networks.get("original")[node]) for node in y_nodes}
+        mask = list(chain.from_iterable([[e]*k for (e,k) in nb_gens.items()]))*len(networks.get("mutants"))
+        output_nodes = {node:bus_nodes[np.array(mask)==node,:] for node in y_nodes}
     valid_networks = []
     errors = []
     for i, network in enumerate(networks.get("mutants")):

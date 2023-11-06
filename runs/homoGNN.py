@@ -75,9 +75,9 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs).to(device)
 
     train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses, lr = train_opf(
-        model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device, homo=False)
+        model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device, hetero=False)
 
-    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
+    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, hetero=False)
     
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
@@ -90,7 +90,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     
     if experiment is not None:
         log_dict_series(log_dict, experiment)
-        log_opf(val_graphs, last_out, y_nodes,experiment)
+        log_opf(valid_networks,val_graphs, last_out, y_nodes,experiment, hetero=False)
     
     if plot:
         plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
@@ -104,6 +104,6 @@ if __name__ == "__main__":
     
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, 
-            title="generalization cost", save_path="./output/case9_9", max_epochs=5, experiment=experiment)
+            title="generalization cost", save_path="./output/case9_9", max_epochs=500, experiment=experiment)
     plt.show()
     exit() 
