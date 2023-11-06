@@ -8,7 +8,7 @@ from runs.diff_distribution import run_case
 parser = get_parser()
 parser.add_argument('-o', '--origin_cases',
                     help="Cases separated by +",
-                    default="case9+case14+case30+case118",
+                    default="case9+case14",
                     type=str) 
 
 def run(mutations = ["cost", "load_relative"], cases = ["case9","case14","case30","case118"],
@@ -21,7 +21,7 @@ def run(mutations = ["cost", "load_relative"], cases = ["case9","case14","case30
                 if origin_case==case:
                     continue
                 experiment = init_comet({"origin_cases":origin_case,"case":case, "mutation":mutation},
-                                        "test_gen_topology_v1")
+                                        "test_gen_topology_v3")
                 training_case=[[origin_case,nb_train,0.7,[mutation]]]
                 validation_case=[case,nb_val,0.7,[mutation]]
                 path = "./output/test_gen_topology/"+mutation+"/"+case+"/"+origin_case

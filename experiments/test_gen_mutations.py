@@ -17,7 +17,7 @@ def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30"
                 continue
             for case in cases:
                 experiment = init_comet({"case":case, "mutation":mutation_trgt,"mutation_src":mutation_src},
-                                        "test_gen_mutation_v1")
+                                        "test_gen_mutation_v3")
                 training_case=[[case,nb_train,0.7,[mutation_src]]]
                 validation_case=[case,nb_val,0.7,[mutation_trgt]]
                 path = "./output/test_gen_muatation/"+mutation_src+"-"+mutation_trgt+"/"+case

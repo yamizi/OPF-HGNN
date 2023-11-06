@@ -11,12 +11,12 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--mutations',
                             help="Mutations separated by +",
-                            default="cost+load+load_relative",
+                            default="cost+load_relative",
                             type=str) 
 
     parser.add_argument('-c', '--cases',
                             help="Cases separated by +",
-                            default="case9+case14+case30+case118",
+                            default="case9+case14",
                             type=str) 
 
     parser.add_argument('-d', '--device',
