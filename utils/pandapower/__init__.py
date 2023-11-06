@@ -110,7 +110,7 @@ class PandaPowerGraph(InMemoryDataset):
         assert self.preprocess in [None, 'metapath2vec', 'transe']
         super().__init__(None, transform, pre_transform)
 
-        self.node_types = ["bus","load","sgen","gen","shunt","ext_grid","line","trafo","trafo3w","impedance","xward"]
+        self.node_types = ["bus","load","shunt","ext_grid","gen","sgen","line","trafo","trafo3w","impedance","xward"]
         if hetero:
             hetero_data, edges, dataframes, scalers= self.build_hetero_data(network, include_res, opf_as_y, scale=scale)
             self.data, self.slices = hetero_data, None
@@ -129,7 +129,7 @@ class PandaPowerGraph(InMemoryDataset):
     
     @property
     def output_nodes(self) -> [str]:
-        return [e for e in ["ext_grid","sgen","gen"] if hasattr(self._data[e],"y")]
+        return [e for e in ["ext_grid","gen","sgen"] if hasattr(self._data[e],"y")]
     
     def export(self,filename="export",format="json", experiment=None):
 
@@ -154,20 +154,19 @@ class PandaPowerGraph(InMemoryDataset):
         bus_df["n_id"] = bus_df.index
         merged_bus_df = bus_df.copy(True)
 
-        node="gen"
-        gen_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
-        gen_df["has_gen"] = 1
-        gen_df.drop(columns=["name"],inplace=True)
-
-        if len(gen_df):
-            merged_bus_df = pd.merge(merged_bus_df,gen_df,left_on="n_id",right_on="bus",how="left", suffixes=("","_gen"))
-
         node="ext_grid"
         ext_grid_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
         ext_grid_df["has_grid"] = 1
         ext_grid_df.drop(columns=["name"],inplace=True)
         if len(ext_grid_df):
-            merged_bus_df = pd.merge(merged_bus_df,gen_df,left_on="n_id",right_on="bus",how="left", suffixes=("","_ext_grid"))
+            merged_bus_df = pd.merge(merged_bus_df,ext_grid_df,left_on="n_id",right_on="bus",how="left", suffixes=("","_ext_grid"))
+
+        node="gen"
+        gen_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
+        gen_df["has_gen"] = 1
+        gen_df.drop(columns=["name"],inplace=True)
+        if len(gen_df):
+            merged_bus_df = pd.merge(merged_bus_df,gen_df,left_on="n_id",right_on="bus",how="left", suffixes=("","_gen"))
 
         node="sgen"
         sgen_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
@@ -215,7 +214,7 @@ class PandaPowerGraph(InMemoryDataset):
             merged_df = deepcopy(getattr(network,node)) if (len(getattr(network,"res_"+node))==0 or not include_res) else pd.merge(getattr(network,node),getattr(network,"res_"+node),"left",on=None,left_index=True,right_index=True)
             if len(merged_df)==0:
                 continue
-            if opf_as_y and node in ["gen","sgen","ext_grid"] and len(getattr(network,"res_"+node))>0:
+            if opf_as_y and node in ["ext_grid","gen","sgen"] and len(getattr(network,"res_"+node))>0:
                 y = ["p_mw","q_mvar"]
                 if include_res:
                     if node=="ext_grid":
