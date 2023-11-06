@@ -65,7 +65,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         train_graphs, train_networks, val_graphs, valid_networks = clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks)
 
     print("Correct training graphs {}/{}".format(len(train_graphs),nb_graphs))
-    experiment.log_metric("nb_valid_graphs", len(train_graphs))
+    experiment.log_metric("nb_train_graphs", len(train_graphs))
     train_loader = DataLoader([g[0] for g in train_graphs], batch_size=train_batch_size)
 
     if len(train_graphs)==0:

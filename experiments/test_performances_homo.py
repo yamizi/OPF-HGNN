@@ -3,7 +3,7 @@ sys.path.append(".")
 from utils.io import get_parser
 
 from utils.logging import init_comet
-from runs.diff_distribution import run_case
+from runs.homoGNN import run_case
 
 parser = get_parser()
 
@@ -12,10 +12,10 @@ def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30"
 
     for mutation in mutations:
         for case in cases:
-            experiment = init_comet({"case":case, "mutation":mutation},"test_perf_v4")
+            experiment = init_comet({"case":case, "mutation":mutation},"test_perf_homo_v3")
             training_case=[[case,nb_train,0.7,[mutation]]]
             validation_case=[case,nb_val,0.7,[mutation]]
-            path = "./output/test_perf/"+mutation+"/"+case
+            path = "./output/test_homo_perf/"+mutation+"/"+case
             run_case(training_cases=training_case,validation_case=validation_case, plot=False,
                      title="Test performance on "+mutation, save_path=path, dataset_type=dataset_type,
                      experiment=experiment,train_batch_size=128,val_batch_size=256,scale=scale,
