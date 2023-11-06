@@ -18,9 +18,9 @@ class GNN(torch.nn.Module):
         return x
 
 class FCNN(torch.nn.Module):
-    def __init__(self, hidden_channels, out_channels):
+    def __init__(self, input_channels, hidden_channels, out_channels):
         super().__init__()
-        self.conv1 = Linear2d(-1, hidden_channels)
+        self.conv1 = Linear2d(input_channels, hidden_channels)
         self.conv2 = Linear2d(hidden_channels, hidden_channels)
         self.linear = Linear2d(hidden_channels, out_channels)
 

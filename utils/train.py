@@ -1,6 +1,7 @@
 import torch.nn.functional as F
 import torch
 import numpy as np
+from utils.models import FCNN, GNN
 
 def relative_loss(yhat,y):
     criterion = torch.nn.L1Loss(reduction="none")
@@ -125,7 +126,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
                 loss_node = loss_label
             loss += loss_node.mean()
     else:
-        out =  model(data.x, data.edge_index)
+        out =  model(data.x, data.edge_index) if isinstance(model, GNN) else  model(data.x)
         mask = ~torch.isnan(data.y).any(1)
         label = data.y[mask]
         output = out[mask]
@@ -174,7 +175,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
             boundary_losses.append(loss_boundary.cpu().detach().numpy())
             loss += loss_node.mean()
     else:
-        out =  model(data.x, data.edge_index)
+        out =  model(data.x, data.edge_index) if isinstance(model, GNN) else  model(data.x)
         mask = ~torch.isnan(data.y).any(1)
         label = data.y[mask]
         output = out[mask]

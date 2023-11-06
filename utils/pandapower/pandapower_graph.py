@@ -49,6 +49,10 @@ class PandaPowerGraph(InMemoryDataset):
     def output_nodes(self) -> [str]:
         return [e for e in ["ext_grid", "gen", "sgen"] if hasattr(self._data[e], "y")]
 
+    @property
+    def total_output_nodes(self) -> [str]:
+        return np.sum([len(self.dataframes.get(e)) for e in ["ext_grid", "gen", "sgen"]])*self.num_outputs
+
     def export(self, filename="export", format="json", experiment=None):
 
         if format == "csv":
@@ -141,7 +145,7 @@ class PandaPowerGraph(InMemoryDataset):
         nx.set_node_attributes(nxgraph, {**y_dict_default, **y_dict}, "y")
         graph = from_networkx(nxgraph)
 
-        dataframes = {"bus": x}
+        dataframes = {"bus": x,"ext_grid":ext_grid_df,"gen":gen_df,"sgen":sgen_df}
         return graph, dataframes, {"bus": scaler}
 
     def build_hetero_data(self, network, include_res=True, opf_as_y=True, scale=True):
