@@ -9,7 +9,7 @@ from utils.pandapower.opf_validation import validate_opf
 from torch_geometric.nn import to_hetero
 
 from torch_geometric.loader import DataLoader
-from utils.base_gnn import GNN
+from utils.models import GNN
 import torch
 from utils.train import train_opf
 from utils.plot import plot_losses, plot_results

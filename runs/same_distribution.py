@@ -9,7 +9,7 @@ from torch_geometric.nn import to_hetero
 
 from torch_geometric.loader import NeighborLoader, DataLoader
 import torch
-from utils.base_gnn import GNN
+from utils.models import GNN
 from utils.train import train_opf
 from utils.plot import plot_losses
 

@@ -10,7 +10,7 @@ from utils.pandapower.opf_validation import validate_opf
 from torch_geometric.nn import to_hetero
 
 from torch_geometric.loader import DataLoader
-from utils.base_gnn import GNN
+from utils.models import GNN
 
 from utils.train import train_opf
 from utils.plot import plot_losses, plot_results
@@ -19,7 +19,7 @@ import json
 def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
              validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True, scale=False,
              save_path="./output", title="",dataset_type="y_OPF",
-             max_epochs=200, y_nodes=["bus"], train_batch_size=5,val_batch_size=5,
+             max_epochs=500, y_nodes=["bus"], train_batch_size=5,val_batch_size=5,
                 device="cpu", filter=True):
     
     uniqueid = uuid.uuid4()
