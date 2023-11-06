@@ -129,10 +129,6 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
         mask = ~torch.isnan(data.y).any(1)
         label = data.y[mask]
         output = out[mask]
-        if mask_node is not None:
-            mask = data[mask_node[i]].train_mask
-            label = label[mask_node[i]]
-            output = output[mask_node[i]]
 
         out = output
         loss_label = loss_f(label, output)
@@ -183,10 +179,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
         label = data.y[mask]
         output = out[mask]
         out = output
-        if mask_node is not None:
-            mask = data[mask_node[i]].train_mask
-            label = label[mask_node[i]]
-            output = output[mask_node[i]]
+
         loss_node = loss_f(label, output)
         #loss_boundary = boundary_loss(data[node].boundaries, output)
         losses.append(loss_node.cpu().detach().numpy())
