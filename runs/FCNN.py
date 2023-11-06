@@ -71,7 +71,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         return 
     
     graph_y = train_graphs[0]
-    model = FCNN(input_channels=graph_y.x.shape[1],hidden_channels=64, out_channels=graph_y.total_output_nodes).to(device)
+    model = FCNN(input_channels=graph_y.x.numel(),hidden_channels=64, out_channels=graph_y.total_output_nodes).to(device)
 
     train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device, hetero=False)
