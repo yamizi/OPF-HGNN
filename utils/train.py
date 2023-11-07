@@ -187,8 +187,10 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
             out = output
         else:
             x = data.x.reshape(data.batch_size, -1)
+            original_shape = label.shape
             label = label.reshape(data.batch_size, -1)
-            out = output = model(x)
+            output = model(x)
+            out = output.reshape(original_shape)
 
         loss_node = loss_f(label, output)
         #loss_boundary = boundary_loss(data[node].boundaries, output)
