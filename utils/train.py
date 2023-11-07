@@ -179,13 +179,15 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
             boundary_losses.append(loss_boundary.cpu().detach().numpy())
             loss += loss_node.mean()
     else:
-        if isinstance(model, GNN): 
-            out =  model(data.x, data.edge_index)
+        mask = ~torch.isnan(data.y).any(1)
+        label = data.y[mask]
+        if isinstance(model, GNN):
+            out = model(data.x, data.edge_index)
             output = out[mask]
             out = output
         else:
-            x = data.x.reshape(data.batch_size,-1)
-            label = label.reshape(data.batch_size,-1)
+            x = data.x.reshape(data.batch_size, -1)
+            label = label.reshape(data.batch_size, -1)
             out = output = model(x)
 
         loss_node = loss_f(label, output)
