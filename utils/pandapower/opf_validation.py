@@ -53,5 +53,6 @@ def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True):
             valid_networks.append(0)
         errors.append(errors_network)
 
+    print("OPF validation over")
     return valid_networks, errors
     
