@@ -64,11 +64,16 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     print("Correct training graphs {}/{}".format(len(train_graphs),np.sum(nb_graphs)))
     experiment.log_metric("nb_train_graphs", len(train_graphs))
 
-    train_loader = DataLoader([g[0] for i, g in enumerate(train_graphs) if i<nb_graphs[0]], batch_size=train_batch_size)
-    finetune_loader = DataLoader([g[0] for i, g in enumerate(train_graphs) if i>=nb_graphs[0]], batch_size=train_batch_size)
+    train_dataset = [g[0] for i, g in enumerate(train_graphs) if i<nb_graphs[0]]
+    train_loader = DataLoader(train_dataset, batch_size=train_batch_size)
+    finetune_dataset = [g[0] for i, g in enumerate(train_graphs) if i>=nb_graphs[0]]
+    finetune_loader = DataLoader(finetune_dataset, batch_size=train_batch_size)
     val_loader = DataLoader([g[0] for g in val_graphs], batch_size=val_batch_size)
+
+    experiment.log_metric("nb_pretrain_graphs", len(train_dataset))
+    experiment.log_metric("nb_finetune_graphs", len(finetune_dataset))
     
-    if len(train_graphs)==0:
+    if len(train_dataset)==0 or len(finetune_dataset)==0 :
         return 
     
     graph_y = train_graphs[0]
