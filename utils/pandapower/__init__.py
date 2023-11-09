@@ -29,6 +29,8 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     comparisons = np.array([a==b for (a,b) in itertools.product(val_str, train_str)]).reshape(len(val_str),len(train_str))
 
     nb_duplicates = np.sum(comparisons)
+    if nb_duplicates>0:
+        print("Found ",nb_duplicates," duplicates")
 
     return train_graphs, train_networks, val_graphs, valid_networks
 
