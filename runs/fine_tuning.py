@@ -43,6 +43,9 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     print("Correct validation graphs {}/{}".format(len(val_graphs),nb_graphs))
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
+    if len(val_graphs)==0 :
+        return
+
     train_graphs = []
     train_networks = {"mutants":[]}
     nb_graphs = []
