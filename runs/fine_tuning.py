@@ -111,14 +111,14 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 if __name__ == "__main__":
 
     case_src="case14"
-    case_target="case14"
+    case_target="case9"
     mutation="load_relative"
     training_case=[[case_src,80,0.7,[mutation]],[case_target,8,0.7,[mutation]]]
     validation_case=[case_target,20,0.7,[mutation]]
     
     experiment = init_comet({"case_src":case_src,"case_target":case_target,"mutation":mutation})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
-            title="generalization load_relative", save_path="./output/case9_9", max_epochs=200, experiment=experiment,
+            title="generalization load_relative", save_path="./output/case9_9", max_epochs=20, experiment=experiment,
             scale=False, filter=True)
     plt.show()
     exit()

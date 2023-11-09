@@ -41,6 +41,10 @@ class PandaPowerGraph(InMemoryDataset):
             self.scalers = scalers
             self.dataframes = dataframes
 
+    def num_features(self, node):
+        default_features = {"bus":12,"load":10,"shunt":10,"ext_grid":15,"gen":18,"sgen":7,"line":27,
+                            "trafo":29,"trafo3w":35,"impedance":8,"xward":10}
+        return default_features.get(node,1)
     @property
     def num_outputs(self) -> int:
         return 2  # np.sum([len(self._data[e].y.flatten()) for e in self.output_nodes if hasattr(self._data[e],"y")])
@@ -166,8 +170,8 @@ class PandaPowerGraph(InMemoryDataset):
                         len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(
                 getattr(network, node), getattr(network, "res_" + node), "left", on=None, left_index=True,
                 right_index=True)
-            if len(merged_df) == 0:
-                continue
+            #if len(merged_df) == 0:
+            #    continue
             if opf_as_y and node in ["ext_grid", "gen", "sgen"] and len(getattr(network, "res_" + node)) > 0:
                 y = ["p_mw", "q_mvar"]
                 if include_res:
@@ -191,7 +195,7 @@ class PandaPowerGraph(InMemoryDataset):
             one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
             if scale:
                 one_hot = scaler.fit_transform(one_hot)
-            data[node].x = torch.Tensor(one_hot)
+            data[node].x = torch.Tensor(one_hot) if len(one_hot) else torch.zeros(1,self.num_features(node))
             scalers[node] = scaler
 
             if "from_bus" in merged_df.columns:
