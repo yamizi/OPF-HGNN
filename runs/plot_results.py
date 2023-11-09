@@ -9,6 +9,7 @@ columns = {"P_ext_grid":("P_true_ext_grid","P_pred_ext_grid"),
 
 root_folder="../submissions/8000/hgnn"
 root_folder="../submissions/8000/gnn"
+#root_folder="../submissions/8000/fcnn"
 
 def run(name, val):
   column = columns.get(val)
@@ -32,7 +33,7 @@ cases=["P_ext_grid","P_gen","Q_ext_grid","Q_gen"]
 mutations = ["cost","load"]
 mutations = ["load"]
 topologies = ["case9", "case14"]
-topologies = ["case9"]
+topologies = ["case14"]
 
 #cases=["q_ext_grid","q_gen"]
 for case in cases:

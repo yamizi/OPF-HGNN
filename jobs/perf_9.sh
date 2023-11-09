@@ -1,5 +1,6 @@
 export CUDA_VISIBLE_DEVICES=0
 DEVICE="cpu"
-python experiments/test_performances.py --mutations "cost" --cases "case9" --device $DEVICE
-python experiments/test_performances.py --mutations "load" --cases "case9" --device $DEVICE
-python experiments/test_performances.py --mutations "load_relative" --cases "case9" --device $DEVICE
+TRAIN=800
+VAL=200
+python experiments/test_performances.py --mutations "cost" --cases "case9" --device $DEVICE --nb_train $TRAIN --nb_val $VAL
+python experiments/test_performances.py --mutations "load_relative" --cases "case9" --device $DEVICE --nb_train $TRAIN --nb_val $VAL
