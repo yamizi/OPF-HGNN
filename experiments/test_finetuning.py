@@ -44,9 +44,18 @@ if __name__ == "__main__":
     origin_mutations = ["load_relative","cost","load_relative","cost"] + ["cost","load", "cost","load"]
     mutations = ["cost","load_relative","cost","load_relative"]+ ["cost","load", "cost","load"]
 
+    origin_cases = ["case14", "case14", "case9", "case9"]
     cases = ["case9", "case9", "case14", "case14"]
-    origin_cases =["case14", "case14", "case9", "case9"]
-    origin_mutations = ["cost", "load", "cost", "load"]
-    mutations = ["cost", "load", "cost", "load"]
-    
+    origin_mutations = ["cost", "load_relative", "cost", "load_relative"]
+    mutations = ["cost", "load_relative", "cost", "load_relative"]
+
+    start = 3
+    cases = cases[start:start+1]
+    origin_cases = origin_cases[start:start+1]
+    origin_mutations = origin_mutations[start:start+1]
+    mutations = mutations[start:start+1]
+
+    origin_cases = ["case30"]
+    cases = ["case9"]
+    origin_mutations = mutations = ["load_relative"]
     run(mutations,origin_mutations,origin_cases,cases, device=args.device, scale=args.scale)
