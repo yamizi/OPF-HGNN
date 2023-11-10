@@ -189,12 +189,18 @@ class PandaPowerGraph(InMemoryDataset):
                 node_cost.index = node_cost.element
                 merged_df = pd.merge(merged_df, node_cost, how="left", right_index=True, left_index=True).drop(
                     columns=["et", "element"])
-                print()
+                
+            
             merged_df.drop(columns=["name"], inplace=True)
+            if node=="bus":
+                merged_df.drop(columns=["type","zone"], inplace=True)
+
             scaler = StandardScaler()
             one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
             if scale:
                 one_hot = scaler.fit_transform(one_hot)
+            
+            
             data[node].x = torch.Tensor(one_hot) if len(one_hot) else torch.zeros(1,self.num_features(node))
             scalers[node] = scaler
 
