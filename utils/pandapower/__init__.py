@@ -54,8 +54,12 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
 
     transforms = [T.ToUndirected(merge=True), T.ToDevice(device)] if hetero else [T.ToDevice(device)]
     graphs = []
-    
-    for sample_id in range(nbsamples):
+    sample_id= 0
+
+    while len(graphs)<nbsamples and sample_id<nbsamples*100:
+        # stop if we mutated more than 100 times the size needed without finding enough valid examples
+        sample_id = sample_id+1
+        print("sample id",sample_id)
         network = deepcopy(original_network)
 
         if mutation_rate>0:
