@@ -34,6 +34,47 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
 
     return train_graphs, train_networks, val_graphs, valid_networks
 
+
+def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                    save_dataframes,case, uniqueid, experiment ):
+    network = deepcopy(original_network)
+
+    if mutation_rate>0:
+        if "cost" in mutations:
+            network = mutate_costs(network, mutation_rate=mutation_rate)
+        
+        if "load" in mutations:
+            network = mutate_loads(network, mutation_rate=mutation_rate)
+
+        if "load_relative" in mutations:
+            network = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
+
+    try:
+        if opf:
+            pp.runopp(network, delta=1e-16)
+        else:
+            pp.runpp(network, delta=1e-16)
+    except Exception as e:
+        print("error in opf",e)
+        return None, None
+
+    
+    if dataset_type=="y_no_OPF":
+        graph_y = PandaPowerGraph(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
+                        transform=T.Compose(transforms),scale=scale, hetero=hetero)
+    elif dataset_type=="y_OPF":
+        graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
+                        transform=T.Compose(transforms),scale=scale, hetero=hetero)
+    if dataset_type=="no_y_OPF":
+        graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
+                        transform=T.Compose(transforms),scale=scale, hetero=hetero)
+        
+    if save_dataframes is not None:
+        path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
+        graph_y.export(path+"op_{}".format(sample_id), experiment=experiment)
+
+    return graph_y, network
+
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=True,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True,
                   hetero=True, device="cpu"):
@@ -56,47 +97,17 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
     graphs = []
     sample_id= 0
 
+    #graph_y_network = [build_one_graph() for sample_id in range(nbsamples)]
+
     while len(graphs)<nbsamples and sample_id<nbsamples*100:
         # stop if we mutated more than 100 times the size needed without finding enough valid examples
         sample_id = sample_id+1
         print("sample id",sample_id)
-        network = deepcopy(original_network)
-
-        if mutation_rate>0:
-            if "cost" in mutations:
-                network = mutate_costs(network, mutation_rate=mutation_rate)
-            
-            if "load" in mutations:
-                network = mutate_loads(network, mutation_rate=mutation_rate)
-
-            if "load_relative" in mutations:
-                network = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
-
-        try:
-            if opf:
-                pp.runopp(network, delta=1e-16)
-            else:
-                pp.runpp(network, delta=1e-16)
-        except Exception as e:
-            print("error in opf",e)
-            continue
-
-        networks["mutants"].append(network)
-        if dataset_type=="y_no_OPF":
-            graph_y = PandaPowerGraph(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms),scale=scale, hetero=hetero)
-        elif dataset_type=="y_OPF":
-            graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
-                            transform=T.Compose(transforms),scale=scale, hetero=hetero)
-        if dataset_type=="no_y_OPF":
-            graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
-                            transform=T.Compose(transforms),scale=scale, hetero=hetero)
-            
-        if save_dataframes is not None:
-            path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
-            graph_y.export(path+"op_{}".format(sample_id), experiment=experiment)
-
+        
+        graph_y, network = build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                    save_dataframes,case, uniqueid, experiment )
         graphs.append(graph_y)
+        networks["mutants"].append(network)
    
     return graphs, networks, path, uniqueid
 
