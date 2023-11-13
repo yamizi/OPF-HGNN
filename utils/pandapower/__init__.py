@@ -16,6 +16,7 @@ import uuid
 import os
 from utils.pandapower.mutations import mutate_costs, mutate_loads
 import itertools
+import ray
 
 from utils.pandapower.pandapower_graph import PandaPowerGraph
 
@@ -34,7 +35,7 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
 
     return train_graphs, train_networks, val_graphs, valid_networks
 
-
+@ray.remote
 def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                     save_dataframes,case, uniqueid, experiment ):
     network = deepcopy(original_network)
@@ -97,18 +98,22 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
     graphs = []
     sample_id= 0
 
-    #graph_y_network = [build_one_graph() for sample_id in range(nbsamples)]
-
+    
+    
     while len(graphs)<nbsamples and sample_id<nbsamples*100:
         # stop if we mutated more than 100 times the size needed without finding enough valid examples
-        sample_id = sample_id+1
         print("sample id",sample_id)
         
-        graph_y, network = build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
-                    save_dataframes,case, uniqueid, experiment )
-        graphs.append(graph_y)
-        networks["mutants"].append(network)
+        graph_y_network = [build_one_graph.remote(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                    save_dataframes,case, uniqueid, experiment=None) for sample_id in range(nbsamples)]
+
+        graph_y_network = ray.get(graph_y_network)
+        graph_y_networks = [g for g in graph_y_network if g[0] is not None]
+        graph_y, networks_y = list(zip(*graph_y_networks))
+
+        graphs = graph_y+ graph_y
+        networks["mutants"] =  networks["mutants"] + networks_y
    
-    return graphs, networks, path, uniqueid
+    return graphs[:nbsamples], networks[:nbsamples], path, uniqueid
 
 
