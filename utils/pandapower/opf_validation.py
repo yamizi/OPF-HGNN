@@ -2,7 +2,10 @@ import torch
 import pandapower as pp
 import numpy as np
 from itertools import chain
+import ray
 
+
+@ray.remote
 def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
     valid_min_max = True
     boundaries = {}
@@ -45,13 +48,11 @@ def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True):
         output_nodes = {node:bus_nodes[np.array(mask)==node,:] for node in y_nodes}
     valid_networks = []
     errors = []
-    for i, network in enumerate(networks.get("mutants")):
-        valid, errors_network =  is_network_valid(i, network, y_nodes, output_nodes, nb_gens)
-        if valid:
-            valid_networks.append(1)
-        else:
-            valid_networks.append(0)
-        errors.append(errors_network)
+
+    validation = [is_network_valid.remote(i, network, y_nodes, output_nodes, nb_gens)  for i, network in enumerate(networks.get("mutants"))]
+    validation_list = ray.get(validation)
+    valids, errors = list(zip(*validation_list))
+    valid_networks = [validation_list[i] for i,valid in enumerate(valids) if valids]
 
     print("OPF validation over")
     return valid_networks, errors
