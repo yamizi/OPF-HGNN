@@ -112,8 +112,10 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
         graph_y, networks_y = list(zip(*graph_y_networks))
 
         graphs = graph_y+ graph_y
-        networks["mutants"] =  networks["mutants"] + networks_y
+        networks["mutants"] =  networks["mutants"] + list(networks_y)
    
-    return graphs[:nbsamples], networks[:nbsamples], path, uniqueid
+    networks["mutants"] = networks["mutants"][:nbsamples]
+    graphs = graphs[:nbsamples]
+    return graphs, networks, path, uniqueid
 
 

@@ -33,7 +33,7 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
         print(run_errors)
     
     valid = run_valid & valid_min_max
-    return valid, {"run":run_errors, **boundaries}
+    return int(valid), {"run":run_errors, **boundaries}
 
 def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True):
     (out_all, val_losses_all) = outputs
@@ -54,6 +54,6 @@ def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True):
     valids, errors = list(zip(*validation_list))
     valid_networks = [validation_list[i] for i,valid in enumerate(valids) if valids]
 
-    print("OPF validation over")
+    print("OPF validation over, nb_valid:",np.mean(valids))
     return valid_networks, errors
     
