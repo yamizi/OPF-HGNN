@@ -51,10 +51,12 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
             network = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
 
     try:
-        if opf:
-            pp.runopp(network, delta=1e-16)
+        if opf==2:
+            pp.runpm_ac_opf(network)
+        elif opf==1:
+            pp.runopp(network)
         else:
-            pp.runpp(network, delta=1e-16)
+            pp.runpp(network)
     except Exception as e:
         print("error in opf",e)
         return None, None
@@ -76,7 +78,7 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
 
     return graph_y, network
 
-def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=True,
+def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=1,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True,
                   hetero=True, device="cpu"):
     print("building dataset with {nbsamples} variants")

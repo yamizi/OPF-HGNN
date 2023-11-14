@@ -19,12 +19,12 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
              validation_case=["case9",64,0.7,["cost", "load"]] ,plot=True,
              save_path="./output", title="",dataset_type="y_OPF",scale=False,
              max_epochs=500, y_nodes=["gen","ext_grid"], train_batch_size=5,val_batch_size=5,
-             device="cpu", filter=True):
+             device="cpu", filter=True, opf=2):
     
     uniqueid = uuid.uuid4()
     if experiment is not None:
         experiment.log_parameters({"uniqueid":uniqueid, "max_epochs":max_epochs,"dataset_type":dataset_type,
-                                   "scale":scale, "type":"hetero",
+                                   "scale":scale, "type":"hetero", "opf":opf,
                             "save_path":save_path,"title":title,"y_nodes":y_nodes,"plot":plot,"device":device})
 
     if torch.cuda.is_available() and "cuda" in device:
@@ -33,7 +33,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
         device="cpu"
 
     common_params = {"dataset_type":dataset_type,"save_dataframes":save_path,"experiment":experiment,
-                     "scale":scale, "device":device }
+                     "scale":scale, "device":device, "opf":opf }
     
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
     val_graphs, valid_networks, _, _ = build_dataset(val_case_name,nbsamples=nb_graphs,
@@ -76,7 +76,7 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     
     train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses, lr = train_opf(model,train_loader,
                                             val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
-    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes)
+    constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf)
     
     case_name = "{}->{}".format(train_case_name,val_case_name)
 

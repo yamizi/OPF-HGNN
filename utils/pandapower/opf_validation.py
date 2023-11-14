@@ -6,7 +6,7 @@ import ray
 
 
 @ray.remote
-def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
+def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf):
     valid_min_max = True
     boundaries = {}
     for node in y_nodes:
@@ -27,15 +27,23 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens):
 
 
     run_valid = True
-    run_errors = pp.diagnostic(network, report_style="compact")
-    if run_errors != {} and list(run_errors.keys())!=['impedance_values_close_to_zero']:
+    try:
+        if opf==2:
+            pp.runpm_ac_opf(network)
+        elif opf==1:
+            pp.runopp(network)
+        else:
+            pp.runpp(network)
+    except Exception as e:
+        run_errors = pp.diagnostic(network, report_style="compact")
         run_valid = False
+        print("error in opf validation", e)
         print(run_errors)
     
     valid = run_valid & valid_min_max
     return int(valid), {"run":run_errors, **boundaries}
 
-def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True):
+def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True, opf=1):
     (out_all, val_losses_all) = outputs
     if hetero:
         output_nodes = {node:torch.cat([e[node] for e in out_all],0) for node in y_nodes}
@@ -49,11 +57,11 @@ def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True):
     valid_networks = []
     errors = []
 
-    validation = [is_network_valid.remote(i, network, y_nodes, output_nodes, nb_gens)  for i, network in enumerate(networks.get("mutants"))]
+    validation = [is_network_valid.remote(i, network, y_nodes, output_nodes, nb_gens, opf)  for i, network in enumerate(networks.get("mutants"))]
     validation_list = ray.get(validation)
     valids, errors = list(zip(*validation_list))
     valid_networks = [validation_list[i] for i,valid in enumerate(valids) if valids]
 
     print("OPF validation over, nb_valid:",np.mean(valids))
-    return valid_networks, errors
+    return valids, errors
     
