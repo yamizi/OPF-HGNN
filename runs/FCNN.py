@@ -80,7 +80,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
-    log_dict = {"constraint": constrained_networks, "train_losses": train_losses, "val_losses": val_losses,
+    log_dict = {"constraint_boundary":constrained_networks[:,1].tolist(),"constraint_opf":constrained_networks[:,0].tolist(),
+                "constraint":constrained_networks.prod(1).tolist(),"train_losses": train_losses, "val_losses": val_losses,
                 "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
                 "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid}
 

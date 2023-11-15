@@ -28,4 +28,7 @@ def get_parser():
     parser.add_argument('-v','--nb_val', help="Number of graphs used in validation", type=int, default=2000)
     parser.add_argument('-s','--scale', help="Scaling features", type=int, default=0)
 
+    parser.add_argument('-dt','--dataset_type', help="Which features to log", type=str, default="y_OPF")
+    parser.add_argument('-n','--comet_name', help="Name of the comet project", type=str, default="")
+    parser.add_argument('-o','--opf', help="Scaling features", type=int, default=1)
     return parser

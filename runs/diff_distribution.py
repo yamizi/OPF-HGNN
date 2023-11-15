@@ -80,7 +80,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     
     case_name = "{}->{}".format(train_case_name,val_case_name)
 
-    log_dict = {"constraint":constrained_networks,"train_losses":train_losses, "val_losses":val_losses, 
+    log_dict = {"constraint_boundary":constrained_networks[:,1].tolist(),"constraint_opf":constrained_networks[:,0].tolist(),
+                "constraint":constrained_networks.prod(1).tolist(),"train_losses":train_losses, "val_losses":val_losses,
                 "b_train_losses":b_train_losses, "b_val_losses":b_val_losses,"learning_rate":lr,
                 "val_losses_gen":val_losses_gen, "val_losses_ext_grid":val_losses_ext_grid}
     
@@ -100,12 +101,12 @@ if __name__ == "__main__":
 
     case="case14"
     mutation="load_relative"
-    training_case=[[case,800,0.7,[mutation]]]
-    validation_case=[case,200,0.7,[mutation]]
+    training_case=[[case,80,0.7,[mutation]]]
+    validation_case=[case,20,0.7,[mutation]]
     
     experiment = init_comet({"case":case,"mutation":mutation})
     run_case(training_cases=training_case,validation_case=validation_case, val_batch_size=50, train_batch_size=32,
-            title="generalization load_relative", save_path="./output/case9_9", max_epochs=200, experiment=experiment,
+            title="generalization load_relative", save_path="./output/case9_9", max_epochs=20, experiment=experiment,
             scale=False, filter=True)
     plt.show()
     exit()

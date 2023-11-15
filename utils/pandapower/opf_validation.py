@@ -24,8 +24,7 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf):
 
         boundaries = {**boundaries, node+"_min":not valid_min.all(), node+"_max":not valid_max.all()}
 
-
-
+    run_errors = {}
     run_valid = True
     try:
         if opf==2:
@@ -40,8 +39,8 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf):
         print("error in opf validation", e)
         print(run_errors)
     
-    valid = run_valid & valid_min_max
-    return int(valid), {"run":run_errors, **boundaries}
+    valid = [run_valid,valid_min_max]
+    return np.array(valid).astype(int), {"run":run_errors, **boundaries}
 
 def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True, opf=1):
     (out_all, val_losses_all) = outputs
@@ -54,14 +53,12 @@ def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True, opf=1):
         nb_gens = {node:len(networks.get("original")[node]) for node in y_nodes}
         mask = list(chain.from_iterable([[e]*k for (e,k) in nb_gens.items()]))*len(networks.get("mutants"))
         output_nodes = {node:bus_nodes[np.array(mask)==node,:] for node in y_nodes}
-    valid_networks = []
-    errors = []
 
     validation = [is_network_valid.remote(i, network, y_nodes, output_nodes, nb_gens, opf)  for i, network in enumerate(networks.get("mutants"))]
     validation_list = ray.get(validation)
     valids, errors = list(zip(*validation_list))
-    valid_networks = [validation_list[i] for i,valid in enumerate(valids) if valids]
+    #valid_networks = [validation_list[i] for i,valid in enumerate(valids) if valids]
 
     print("OPF validation over, nb_valid:",np.mean(valids))
-    return valids, errors
+    return np.array(valids).astype(int), errors
     
