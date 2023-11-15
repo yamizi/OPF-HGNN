@@ -9,11 +9,11 @@ parser = get_parser()
 
 def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30","case118"], 
         nb_train = 8000,nb_val = 2000, dataset_type="y_OPF", device="cuda", scale=0,
-        opf=1):
+        opf=1, project_name="test_perf_v4"):
 
     for mutation in mutations:
         for case in cases:
-            experiment = init_comet({"case":case, "mutation":mutation},"test_perf_v4")
+            experiment = init_comet({"case":case, "mutation":mutation},project_name)
             training_case=[[case,nb_train,0.7,[mutation]]]
             validation_case=[case,nb_val,0.7,[mutation]]
             path = "./output/test_perf/"+mutation+"/"+case
@@ -27,5 +27,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     mutations = args.mutations.split("+")
     cases = args.cases.split("+")
+    comet_name = args.comet_name if args.comet_name!="" else "test_perf_v4"
     run(mutations,cases, args.nb_train,args.nb_val, device=args.device, scale=args.scale,
-        dataset_type=args.dataset_type,opf=args.opf)
+        dataset_type=args.dataset_type,opf=args.opf, project_name=comet_name)
