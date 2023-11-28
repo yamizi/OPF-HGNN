@@ -35,6 +35,10 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     return train_graphs, train_networks, val_graphs, valid_networks
 
 @ray.remote
+def build_one_graph_ray(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                    save_dataframes,case, uniqueid, experiment ):
+    return build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                    save_dataframes,case, uniqueid, experiment )
 def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                     save_dataframes,case, uniqueid, experiment ):
     network = deepcopy(original_network)
@@ -79,7 +83,7 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=1,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True,
-                  hetero=True, device="cpu"):
+                  hetero=True, device="cpu",use_ray=True):
     print("building dataset with {nbsamples} variants")
 
     case_method = getattr(pp.networks, case)
@@ -104,11 +108,16 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
     while len(graphs)<nbsamples and sample_id<nbsamples*100:
         # stop if we mutated more than 100 times the size needed without finding enough valid examples
         print("sample id",sample_id)
-        
-        graph_y_network = [build_one_graph.remote(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
-                    save_dataframes,case, uniqueid, experiment=None) for sample_id in range(nbsamples)]
 
-        graph_y_network = ray.get(graph_y_network)
+        if use_ray:
+            graph_y_network = [build_one_graph_ray.remote(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                        save_dataframes,case, uniqueid, experiment=None) for sample_id in range(nbsamples)]
+
+            graph_y_network = ray.get(graph_y_network)
+        else:
+            graph_y_network = [build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                        save_dataframes,case, uniqueid, experiment=None) for sample_id in range(nbsamples)]
+
         graph_y_networks = [g for g in graph_y_network if g[0] is not None]
         graph_y, networks_y = list(zip(*graph_y_networks))
 
