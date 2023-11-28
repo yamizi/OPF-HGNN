@@ -15,11 +15,23 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf):
         values = output_nodes.get(node)
         if len(values)==0:
             continue
-        valid_max = values[i*nb_gens[node]:(i+1)*nb_gens[node]].numpy() < getattr(network,node)[["max_p_mw","max_q_mvar"]].values
-        getattr(network,node)[["max_p_mw","max_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]]
-        
-        valid_min = getattr(network,node)[["min_p_mw","min_q_mvar"]].values < values[i*nb_gens[node]:(i+1)*nb_gens[node]].numpy()
-        getattr(network,node)[["min_p_mw","min_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]]
+
+        if node=="bus":
+            valid_max = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4].numpy() < getattr(network, node)[
+                ["max_vm_pu"]].values
+            getattr(network, node)[["max_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4]
+
+            valid_min = getattr(network, node)[["min_vm_pu"]].values < values[
+                                                                                    i * nb_gens[node]:(i + 1) * nb_gens[
+                                                                                        node]][:,3:4].numpy()
+            getattr(network, node)[["min_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4]
+
+        else:
+            valid_max = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2].numpy() < getattr(network,node)[["max_p_mw","max_q_mvar"]].values
+            getattr(network,node)[["max_p_mw","max_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2]
+
+            valid_min = getattr(network,node)[["min_p_mw","min_q_mvar"]].values < values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2].numpy()
+            getattr(network,node)[["min_p_mw","min_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2]
 
         print(node,": Valid min values respected:", valid_min.all(), "Valid max values respected:", valid_max.all())
         valid_min_max = valid_min_max & valid_max.all() & valid_min.all()
