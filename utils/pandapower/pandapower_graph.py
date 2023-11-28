@@ -47,7 +47,7 @@ class PandaPowerGraph(InMemoryDataset):
         return default_features.get(node,1)
     @property
     def num_outputs(self) -> int:
-        return 2  # np.sum([len(self._data[e].y.flatten()) for e in self.output_nodes if hasattr(self._data[e],"y")])
+        return 4  # np.sum([len(self._data[e].y.flatten()) for e in self.output_nodes if hasattr(self._data[e],"y")])
 
     @property
     def output_nodes(self) -> [str]:
@@ -152,7 +152,7 @@ class PandaPowerGraph(InMemoryDataset):
         dataframes = {"bus": x,"ext_grid":ext_grid_df,"gen":gen_df,"sgen":sgen_df}
         return graph, dataframes, {"bus": scaler}
 
-    def build_hetero_data(self, network, include_res=True, opf_as_y=True, scale=True):
+    def build_hetero_data(self, network, include_res=True, opf_as_y=True, scale=False):
 
         node_types = self.node_types
         costs = network.poly_cost
@@ -170,25 +170,35 @@ class PandaPowerGraph(InMemoryDataset):
                         len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(
                 getattr(network, node), getattr(network, "res_" + node), "left", on=None, left_index=True,
                 right_index=True)
-            #if len(merged_df) == 0:
-            #    continue
-            if opf_as_y and node in ["ext_grid", "gen", "sgen"] and len(getattr(network, "res_" + node)) > 0:
-                y = ["p_mw", "q_mvar"]
-                if include_res:
-                    if node == "ext_grid":
-                        merged_df.drop(columns=["p_mw", "q_mvar"], inplace=True)
-                    if node in ["sgen", "gen"]:
-                        merged_df.drop(columns=["va_degree", "vm_pu_y", "p_mw_y", "q_mvar"], inplace=True)
-                pf = getattr(network, "res_" + node)[y]
-                merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]]
-                data[node].boundaries = torch.Tensor(
-                    merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values)
-                data[node].y = torch.Tensor(pf.values)
 
-                node_cost = costs[costs["et"] == node]
-                node_cost.index = node_cost.element
-                merged_df = pd.merge(merged_df, node_cost, how="left", right_index=True, left_index=True).drop(
-                    columns=["et", "element"])
+
+            if len(merged_df):
+                if node == "ext_grid":
+                    y = ["p_mw", "q_mvar"]
+                    data[node].boundaries = torch.Tensor(
+                        merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values)
+                elif node in ["sgen", "gen"]:
+                    y = ["p_mw", "q_mvar", "vm_pu", "va_degree"]
+                    data[node].boundaries = torch.Tensor(
+                        merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values)
+                if node in ["bus"]:
+                    y = ["p_mw", "q_mvar","vm_pu", "va_degree"]
+                    data[node].boundaries = torch.Tensor(
+                        merged_df[["min_vm_pu", "max_vm_pu"]].values)
+
+            if opf_as_y:
+
+                if node in ["ext_grid", "gen", "sgen", "bus"] and len(getattr(network, "res_" + node)) > 0:
+                    merged_df = merged_df.rename(columns={"p_mw_y": "p_mw", "vm_pu_y": "vm_pu"})
+                    merged_df.drop(columns=y, inplace=True)
+                    pf = getattr(network, "res_" + node)[y]
+                    data[node].y = torch.Tensor(pf.values)
+
+                    if node in ["ext_grid", "gen", "sgen"]:
+                        node_cost = costs[costs["et"] == node]
+                        node_cost.index = node_cost.element
+                        merged_df = pd.merge(merged_df, node_cost, how="left", right_index=True, left_index=True).drop(
+                            columns=["et", "element"])
                 
             
             merged_df.drop(columns=["name"], inplace=True)
