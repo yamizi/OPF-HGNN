@@ -173,19 +173,18 @@ class PandaPowerGraph(InMemoryDataset):
 
 
             if len(merged_df):
+                boundaries = np.nan * np.ones((len(merged_df), 6))
                 if node == "ext_grid":
                     y = ["p_mw", "q_mvar"]
-                    data[node].boundaries = torch.Tensor(
-                        merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values)
+                    boundaries[:,0:4] = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
                 elif node in ["sgen", "gen"]:
                     y = ["p_mw", "q_mvar", "vm_pu", "va_degree"]
-                    data[node].boundaries = torch.Tensor(
-                        merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values)
+                    boundaries[:,0:4] = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
                 if node in ["bus"]:
                     y = ["p_mw", "q_mvar","vm_pu", "va_degree"]
-                    data[node].boundaries = torch.Tensor(
-                        merged_df[["min_vm_pu", "max_vm_pu"]].values)
+                    boundaries[:,4:6] = merged_df[["min_vm_pu", "max_vm_pu"]].values
 
+                data[node].boundaries = torch.Tensor(boundaries)
             if opf_as_y:
 
                 if node in ["ext_grid", "gen", "sgen", "bus"] and len(getattr(network, "res_" + node)) > 0:

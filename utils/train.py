@@ -8,12 +8,19 @@ def relative_loss(yhat,y):
     #criterion = torch.nn.MSELoss(reduction="none")
     return criterion(yhat,y)/yhat.abs()
 
-def boundary_loss(boundaries,y):
-    minp = boundaries[:,0]
-    maxp = boundaries[:,1]
-    minq = boundaries[:,2]
-    maxq = boundaries[:,3]
-    return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
+def masked_loss(yhat,y):
+    criterion = torch.nn.MSELoss(reduction="none")
+    return criterion(yhat,y[:,:yhat.shape[1]])
+
+def boundary_loss(boundaries,y, node=""):
+    #minp = boundaries[:,0]
+    #maxp = boundaries[:,1]
+    #minq = boundaries[:,2]
+    #maxq = boundaries[:,3]
+
+    boundary_losses = [torch.max(torch.zeros_like(boundaries[:,2*i]),boundaries[:,2*i]-y[:,i]) + torch.max(torch.zeros_like(boundaries[:,2*i+1]),y[:,i]-boundaries[:,2*i+1]) for i in range(y.shape[1]-1) if torch.isnan(boundaries[:,2*i]).sum()==0]
+    return torch.stack(boundary_losses).sum(0)
+    #return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
               device="cpu",decayRate = 0.3, hetero=True):
@@ -22,12 +29,13 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones,gamma=decayRate)
 
     loss_fn = torch.nn.MSELoss(reduction="none")
-    #loss_fn = relative_loss
+    loss_fn = masked_loss
 
     train_losses = []
     boundary_train_losses = []
     boundary_val_losses = []
     val_losses = []
+    val_losses_bus = []
     val_losses_gen = []
     val_losses_ext_grid  = []
     learning_rate = []
@@ -59,6 +67,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         boundary_loss = 0
         val_loss_gen = 0
         val_loss_ext_grid = 0
+        val_loss_bus = 0
 
         val_losses_all = []
         out_all = []
@@ -71,6 +80,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
                 out_all.append(last_out)
                 val_loss_gen += losses[0].mean()
                 val_loss_ext_grid += losses[1].mean() if len(losses)>1 else 0
+                val_loss_bus += losses[2].mean() if len(losses) > 2 else 0
 
         val_loss /= len(val_loader)
         boundary_loss /= len(val_loader)
@@ -87,8 +97,11 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         val_loss_ext_grid /= len(val_loader)
         val_losses_ext_grid.append(val_loss_ext_grid)
 
+        val_loss_bus /= len(val_loader)
+        val_losses_bus.append(val_loss_bus)
+
     print("Training over")
-    return train_losses, val_losses, val_losses_gen, val_losses_ext_grid, (out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
+    return train_losses, val_losses, (val_losses_gen, val_losses_ext_grid,val_losses_bus), (out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
 
 def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True, 
                use_boundary_loss=True):
@@ -120,7 +133,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             loss_label = loss_f(label, output)
             losses.append(loss_label.cpu().detach().numpy())
             if use_boundary_loss:
-                loss_boundary = boundary_loss(data[node].boundaries, output)
+                loss_boundary = boundary_loss(data[node].boundaries, output, node)
                 loss_node = torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
                 boundary_losses.append(loss_boundary.cpu().detach().numpy())
             else:
