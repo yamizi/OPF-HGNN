@@ -19,7 +19,7 @@ import itertools
 import ray
 
 from utils.pandapower.pandapower_graph import PandaPowerGraph
-
+import copy
 def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     print("clearing duplicates")
     train_graphs_c = deepcopy(train_graphs)
@@ -54,6 +54,9 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
             network = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
 
     try:
+        run_errors = pp.diagnostic(copy.deepcopy(network), report_style="compact")
+        network.original_errors = run_errors
+        print(run_errors)
         if opf==2:
             pp.runpm_ac_opf(network)
         elif opf==1:

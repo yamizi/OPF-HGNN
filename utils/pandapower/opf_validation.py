@@ -49,9 +49,10 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf):
             pp.runpp(copy.deepcopy(network))
     except Exception as e:
         run_errors = pp.diagnostic(copy.deepcopy(network), report_style="compact")
-        run_valid = False
-        print("error in opf validation", e)
-        print(run_errors)
+        if run_errors!=network.original_errors:
+            run_valid = False
+            print("error in opf validation", e)
+            print(run_errors)
     
     valid = [run_valid,valid_min_max]
     return np.array(valid).astype(int), {"run":run_errors, **boundaries}

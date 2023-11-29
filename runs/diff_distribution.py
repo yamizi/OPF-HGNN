@@ -20,7 +20,7 @@ import json
 def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=None,
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
-             max_epochs=500, y_nodes=["gen", "ext_grid"], train_batch_size=5, val_batch_size=5,
+             max_epochs=500, y_nodes=["gen", "ext_grid","bus"], train_batch_size=5, val_batch_size=5,
              device="cpu", filter=True, opf=2,use_ray=True):
     uniqueid = uuid.uuid4()
     if experiment is not None:
@@ -78,9 +78,10 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs).to(device)
     model = to_hetero(model, data.metadata(), aggr='sum')
 
-    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses, lr = train_opf(
-        model, train_loader,
-        val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
+    train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, b_val_losses, lr = train_opf(
+        model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
+
+    val_losses_gen, val_losses_ext_grid, val_losses_bus = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
                                                         use_ray=use_ray)
 
@@ -91,7 +92,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                 "constraint": constrained_networks.prod(1).tolist(), "train_losses": train_losses,
                 "val_losses": val_losses,
                 "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
-                "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid}
+                "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
+                "val_losses_bus":val_losses_bus}
 
     with open(save_path + "/losses.json", "w") as outfile:
         json.dump(log_dict, outfile)
@@ -110,14 +112,14 @@ if __name__ == "__main__":
     max_epochs = 5
     case = "case14"
     mutation = "load_relative"
-    training_case = [[case, 80, 0.7, [mutation]]]
-    validation_case = [case, 20, 0.7, [mutation]]
+    training_case = [[case, 8, 0.7, [mutation]]]
+    validation_case = [case, 2, 0.7, [mutation]]
     opf = 1
 
     experiment = init_comet({"case": case, "mutation": mutation})
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=32,
              title="generalization load_relative", save_path=f"./output/case{training_case}_{validation_case}",
-             max_epochs=max_epochs, experiment=experiment, dataset_type="y_no_OPF",
+             max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
              scale=False, filter=True, opf=opf,use_ray=False)
     plt.show()
     exit()
