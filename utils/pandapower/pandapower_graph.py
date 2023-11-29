@@ -189,7 +189,8 @@ class PandaPowerGraph(InMemoryDataset):
 
                 if node in ["ext_grid", "gen", "sgen", "bus"] and len(getattr(network, "res_" + node)) > 0:
                     merged_df = merged_df.rename(columns={"p_mw_y": "p_mw", "vm_pu_y": "vm_pu"})
-                    merged_df.drop(columns=y, inplace=True)
+                    if include_res:
+                        merged_df.drop(columns=y, inplace=True)
                     pf = getattr(network, "res_" + node)[y]
                     data[node].y = torch.Tensor(pf.values)
 
