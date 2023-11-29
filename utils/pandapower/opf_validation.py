@@ -8,7 +8,7 @@ import copy
 @ray.remote
 def is_network_valid_ray(i, network, y_nodes, output_nodes, nb_gens, opf):
     return is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf)
-def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf):
+def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf, delta=1e-8):
     valid_min_max = True
     boundaries = {}
     for node in y_nodes:
@@ -19,19 +19,19 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf):
         if node=="bus":
             valid_max = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4].numpy() < getattr(network, node)[
                 ["max_vm_pu"]].values
-            getattr(network, node)[["max_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4]
+            getattr(network, node)[["max_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4]*(1+delta*10)
 
             valid_min = getattr(network, node)[["min_vm_pu"]].values < values[
                                                                                     i * nb_gens[node]:(i + 1) * nb_gens[
                                                                                         node]][:,3:4].numpy()
-            getattr(network, node)[["min_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4]
+            getattr(network, node)[["min_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4]*(1-delta*10)
 
         else:
             valid_max = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2].numpy() < getattr(network,node)[["max_p_mw","max_q_mvar"]].values
-            getattr(network,node)[["max_p_mw","max_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2]
+            getattr(network,node)[["max_p_mw","max_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2]*(1+delta*10)
 
             valid_min = getattr(network,node)[["min_p_mw","min_q_mvar"]].values < values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2].numpy()
-            getattr(network,node)[["min_p_mw","min_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2]
+            getattr(network,node)[["min_p_mw","min_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2]*(1-delta*10)
 
         print(node,": Valid min values respected:", valid_min.all(), "Valid max values respected:", valid_max.all())
         valid_min_max = valid_min_max & valid_max.all() & valid_min.all()
@@ -42,9 +42,9 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf):
     run_valid = True
     try:
         if opf==2:
-            pp.runpm_ac_opf(copy.deepcopy(network))
+            pp.runpm_ac_opf(copy.deepcopy(network),delta=delta)
         elif opf==1:
-            pp.runopp(copy.deepcopy(network))
+            pp.runopp(copy.deepcopy(network),delta=delta)
         else:
             pp.runpp(copy.deepcopy(network))
     except Exception as e:
