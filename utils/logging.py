@@ -42,4 +42,9 @@ def log_opf(networks,val_graphs, outputs, y_nodes, experiment, hetero=True):
         ground_truth = labels[node]
         dic = {"P_pred_"+node:outputs[:,0].cpu().numpy(), "P_true_"+node:ground_truth[:,0].cpu().numpy(),
                "Q_pred_"+node:outputs[:,1].cpu().numpy(), "Q_true_"+node:ground_truth[:,1].cpu().numpy()}
+
+        if node in ["bus","gen","sgen"]:
+            dic = {"Vm_pred_" + node: outputs[:, 2].cpu().numpy(), "Vm_true_" + node: ground_truth[:, 2].cpu().numpy(),
+                   "Va_pred_" + node: outputs[:, 3].cpu().numpy(), "Va_true_" + node: ground_truth[:, 3].cpu().numpy(),
+                   **dic}
         log_dict_series(dic,experiment)
