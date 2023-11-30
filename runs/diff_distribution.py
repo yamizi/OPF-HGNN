@@ -21,24 +21,26 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid","bus"], train_batch_size=5, val_batch_size=5,
-             device="cpu", filter=True, opf=2,use_ray=True):
+             device="cuda", filter=True, opf=2,use_ray=True):
     uniqueid = uuid.uuid4()
     if experiment is not None:
         experiment.log_parameters({"uniqueid": uniqueid, "max_epochs": max_epochs, "dataset_type": dataset_type,
-                                   "scale": scale, "type": "hetero", "opf": opf,
+                                   "scale": scale, "type": "hetero", "opf": opf,"use_ray":use_ray,
                                    "save_path": save_path, "title": title, "y_nodes": y_nodes, "plot": plot,
                                    "device": device})
 
     if torch.cuda.is_available() and "cuda" in device:
         device = device
+        print("running with ", device)
     else:
         device = "cpu"
+        print("running with cpu backend")
 
     common_params = {"dataset_type": dataset_type, "save_dataframes": save_path, "experiment": experiment,
                      "scale": scale, "device": device, "opf": opf}
 
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
-    val_graphs, valid_networks, _, _ = build_dataset(val_case_name, nbsamples=nb_graphs,
+    val_graphs, valid_networks, _, _ = build_dataset(val_case_name, nbsamples=nb_graphs,device=device,
                                                      mutation_rate=mutation_rate, uniqueid="{}/val".format(uniqueid),
                                                      mutations=mutations,use_ray=use_ray, **common_params)
     print("Correct validation graphs {}/{}".format(len(val_graphs), nb_graphs))
@@ -52,7 +54,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
         train_graph, train_network, _, _ = build_dataset(train_case_name, nbsamples=nb_graph,
-                                                         mutation_rate=mutation_rate,
+                                                         mutation_rate=mutation_rate,device=device,
                                                          uniqueid="{}/train".format(uniqueid),
                                                          mutations=mutations, **common_params)
 
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     experiment = init_comet({"case": case, "mutation": mutation})
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=32,
              title="generalization load_relative", save_path=f"./output/case{training_case}_{validation_case}",
-             max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
+             max_epochs=max_epochs, experiment=experiment, dataset_type="y_no_OPF",
              scale=False, filter=True, opf=opf,use_ray=False)
     plt.show()
     exit()

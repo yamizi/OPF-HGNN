@@ -103,6 +103,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
         graph.export(path+"/raw")
 
     transforms = [T.ToUndirected(merge=True), T.ToDevice(device)] if hetero else [T.ToDevice(device)]
+    transforms = [T.ToDevice(device)] +transforms
     graphs = []
     sample_id= 0
 
