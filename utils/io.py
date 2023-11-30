@@ -21,7 +21,7 @@ def get_parser():
 
     parser.add_argument('-d', '--device',
                             help="Device (cpu or cuda)",
-                            default="cpu",
+                            default="cuda",
                             type=str) 
 
     parser.add_argument('-t','--nb_train', help="Number of graphs used in training", type=int, default=8000)
