@@ -31,4 +31,5 @@ def get_parser():
     parser.add_argument('-dt','--dataset_type', help="Which features to log", type=str, default="y_OPF")
     parser.add_argument('-n','--comet_name', help="Name of the comet project", type=str, default="")
     parser.add_argument('-o','--opf', help="Scaling features", type=int, default=1)
+    parser.add_argument('-r', '--ray', help="Parallelize with ray", type=int, default=0)
     return parser
