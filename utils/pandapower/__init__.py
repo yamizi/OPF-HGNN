@@ -32,7 +32,11 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     nb_duplicates = np.sum(comparisons)
     print("Found ",nb_duplicates," duplicates")
 
-    return train_graphs, train_networks, val_graphs, valid_networks
+    correct = np.where(comparisons.sum(0)==0)[0]
+    train_graphs_filtered = [train_graphs[i] for i in correct]
+    train_mutants_filtered = [train_networks.get("mutants")[i] for i in correct]
+    train_networks_filtered = {"mutants":train_mutants_filtered, "original":train_networks.get("original")}
+    return train_graphs_filtered, train_networks_filtered, val_graphs, valid_networks
 
 @ray.remote
 def build_one_graph_ray(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
