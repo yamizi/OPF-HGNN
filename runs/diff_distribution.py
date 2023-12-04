@@ -100,7 +100,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
     graph_y = train_graphs[0]
     data = graph_y[0]
-    model = GNN(nb_hidden_layers=hidden_channels, out_channels=graph_y.num_outputs)
+    model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs)
     model = to_hetero(model, data.metadata(), aggr='sum').to(device)
 
     print("model device", next(model.parameters()).device)
