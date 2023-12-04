@@ -5,13 +5,21 @@ from collections import OrderedDict
 
 
 class GNN(torch.nn.Module):
-    def __init__(self, initial_channels, hidden_channels, nb_hidden_layers, out_channels):
+    def __init__(self, hidden_channels, out_channels,initial_channels=None):
         super().__init__()
+
+        if isinstance(hidden_channels, int):
+            hidden_channels = [hidden_channels]
+
+        if initial_channels is None:
+            initial_channels = hidden_channels[0]*2
+
+        nb_hidden_layers = len(hidden_channels)
 
         self.first_conv = SAGEConv((-1, -1), initial_channels)
         self.convs = torch.nn.ModuleDict(
-            OrderedDict([(f"conv{i}", SAGEConv((-1, -1), hidden_channels)) for i in range(nb_hidden_layers)]))
-        self.linear = Linear(hidden_channels, out_channels)
+            OrderedDict([(f"conv{i}", SAGEConv((-1, -1), hidden_channels[i])) for i in range(nb_hidden_layers)]))
+        self.linear = Linear(hidden_channels[-1], out_channels)
 
     def forward(self, x, edge_index):
         x = self.first_conv(x, edge_index)

@@ -23,7 +23,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus"], train_batch_size=5, val_batch_size=5,
-             device="cuda", filter=True, opf=2, use_ray=True, uniqueid=""):
+             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64,64,64]):
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -40,7 +40,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         experiment.log_parameters({"uniqueid": uniqueid, "max_epochs": max_epochs, "dataset_type": dataset_type,
                                    "scale": scale, "type": "hetero", "opf": opf, "use_ray": use_ray,
                                    "save_path": save_path, "title": title, "y_nodes": y_nodes, "plot": plot,
-                                   "device": device, "train_batch_size": train_batch_size,
+                                   "device": device, "train_batch_size": train_batch_size,"hidden_channels":hidden_channels,
                                    "val_batch_size": val_batch_size, "pickle_file":pickle_file})
 
     if(os.path.exists(pickle_file)):
@@ -100,7 +100,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
     graph_y = train_graphs[0]
     data = graph_y[0]
-    model = GNN(initial_channels=128, hidden_channels=64, nb_hidden_layers=3, out_channels=graph_y.num_outputs)
+    model = GNN(nb_hidden_layers=hidden_channels, out_channels=graph_y.num_outputs)
     model = to_hetero(model, data.metadata(), aggr='sum').to(device)
 
     print("model device", next(model.parameters()).device)
