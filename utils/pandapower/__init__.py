@@ -115,12 +115,12 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
 
         if use_ray:
             graph_y_network = [build_one_graph_ray.remote(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
-                        save_dataframes,case, uniqueid, experiment=None, device=device) for sample_id in range(nbsamples)]
+                        save_dataframes,case, uniqueid, experiment=None) for sample_id in range(nbsamples)]
 
             graph_y_network = ray.get(graph_y_network)
         else:
             graph_y_network = [build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
-                        save_dataframes,case, uniqueid, experiment=experiment, device=device) for sample_id in range(nbsamples)]
+                        save_dataframes,case, uniqueid, experiment=experiment) for sample_id in range(nbsamples)]
 
         graph_y_networks = [g for g in graph_y_network if g[0] is not None]
         graph_y, networks_y = list(zip(*graph_y_networks))

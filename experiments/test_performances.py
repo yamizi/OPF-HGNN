@@ -27,6 +27,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     mutations = args.mutations.split("+")
     cases = args.cases.split("+")
-    comet_name = args.comet_name if args.comet_name!="" else "test_perf_v4"
+    comet_name = args.comet_name if args.comet_name!="" else "test_perf_a1"
     run(mutations,cases, args.nb_train,args.nb_val, device=args.device, scale=args.scale,
         dataset_type=args.dataset_type,opf=args.opf, project_name=comet_name,use_ray =args.ray)
