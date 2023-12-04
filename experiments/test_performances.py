@@ -16,7 +16,7 @@ def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30"
             experiment = init_comet({"case":case, "mutation":mutation},project_name)
             training_case=[[case,nb_train,0.7,[mutation]]]
             validation_case=[case,nb_val,0.7,[mutation]]
-            path = "./output/test_perf"
+            path = "./output/test_perf/"+project_name
             hash_path = f"{training_case}_{validation_case}"
             hash_path = hashlib.md5(hash_path.encode()).hexdigest()
 

@@ -34,7 +34,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         device = "cpu"
         print("running with cpu backend")
 
-    pickle_file = f"{save_path}/{case}_{uniqueid}.pkl"
+    pickle_file = f"{save_path}/{uniqueid}.pkl"
 
     if experiment is not None:
         experiment.log_parameters({"uniqueid": uniqueid, "max_epochs": max_epochs, "dataset_type": dataset_type,
@@ -76,7 +76,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
             train_graphs += train_graph
             train_networks["mutants"] += train_network["mutants"]
-            train_networks["original"] += train_network["original"]
+            train_networks["original"] += [train_network["original"]]
             nb_graphs += nb_graph
 
         if filter:
