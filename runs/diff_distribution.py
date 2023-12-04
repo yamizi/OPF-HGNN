@@ -37,12 +37,12 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         print("running with cpu backend")
 
     common_params = {"dataset_type": dataset_type, "save_dataframes": save_path, "experiment": experiment,
-                     "scale": scale, "device": device, "opf": opf}
+                     "scale": scale, "device": device, "opf": opf,"use_ray":use_ray}
 
     val_case_name, nb_graphs, mutation_rate, mutations = validation_case
-    val_graphs, valid_networks, _, _ = build_dataset(val_case_name, nbsamples=nb_graphs,device=device,
+    val_graphs, valid_networks, _, _ = build_dataset(val_case_name, nbsamples=nb_graphs,
                                                      mutation_rate=mutation_rate, uniqueid="{}/val".format(uniqueid),
-                                                     mutations=mutations,use_ray=use_ray, **common_params)
+                                                     mutations=mutations, **common_params)
     print("Correct validation graphs {}/{}".format(len(val_graphs), nb_graphs))
     experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
@@ -54,7 +54,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         train_case_name, nb_graph, mutation_rate, mutations = training_case
 
         train_graph, train_network, _, _ = build_dataset(train_case_name, nbsamples=nb_graph,
-                                                         mutation_rate=mutation_rate,device=device,
+                                                         mutation_rate=mutation_rate,
                                                          uniqueid="{}/train".format(uniqueid),
                                                          mutations=mutations, **common_params)
 
@@ -77,8 +77,10 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
     graph_y = train_graphs[0]
     data = graph_y[0]
-    model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs).to(device)
-    model = to_hetero(model, data.metadata(), aggr='sum')
+    model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs)
+    model = to_hetero(model, data.metadata(), aggr='sum').to(device)
+
+    print("model device",next(model.parameters()).device)
 
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)

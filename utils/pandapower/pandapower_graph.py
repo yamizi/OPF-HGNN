@@ -18,7 +18,7 @@ from copy import deepcopy
 class PandaPowerGraph(InMemoryDataset):
     def __init__(self, network: pandapowerNet, preprocess: Optional[str] = None,
                  transform: Optional[Callable] = None, scale=True,
-                 pre_transform: Optional[Callable] = None,
+                 pre_transform: Optional[Callable] = None, device="cpu",
                  include_res: bool = True, opf_as_y: bool = True, hetero=True):
 
         preprocess = None if preprocess is None else preprocess.lower()
@@ -26,6 +26,8 @@ class PandaPowerGraph(InMemoryDataset):
         assert self.preprocess in [None, 'metapath2vec', 'transe']
         super().__init__(None, transform, pre_transform)
 
+        self.device = device
+        print("Pandapower device",self.device)
         self.node_types = ["bus", "load", "shunt", "ext_grid", "gen", "sgen", "line", "trafo", "trafo3w", "impedance",
                            "xward"]
         if hetero:
@@ -137,13 +139,13 @@ class PandaPowerGraph(InMemoryDataset):
         if scale:
             one_hot = scaler.fit_transform(one_hot)
         # x_dict = dict(zip(range(len(one_hot)), one_hot.tolist()))
-        x_dict = dict(zip(range(len(one_hot)), torch.Tensor(one_hot)))
+        x_dict = dict(zip(range(len(one_hot)), torch.Tensor(one_hot).to(self.device)))
         y = np.concatenate([pd.merge(getattr(network, node)[["bus"]], getattr(network, "res_" + node), "left", on=None,
                                      left_index=True, right_index=True)[["bus", "p_mw", "q_mvar"]].values for node in
                             ["ext_grid", "gen", "sgen"]])
         # y_dict = dict(zip(y[:, 0].astype(int), y[:, 1:3].tolist()))
-        y_dict = dict(zip(y[:, 0].astype(int), torch.Tensor(y[:, 1:3])))
-        y_dict_default = dict(zip(list(range(len(bus_df))), [torch.Tensor([np.nan, np.nan])] * len(bus_df)))
+        y_dict = dict(zip(y[:, 0].astype(int), torch.Tensor(y[:, 1:3]).to(self.device)))
+        y_dict_default = dict(zip(list(range(len(bus_df))), [torch.Tensor([np.nan, np.nan]).to(self.device)] * len(bus_df)))
         nxgraph = create_nxgraph(network, multi=False, calc_branch_impedances=True)
         nx.set_node_attributes(nxgraph, x_dict, "x")
         nx.set_node_attributes(nxgraph, {**y_dict_default, **y_dict}, "y")
@@ -184,7 +186,10 @@ class PandaPowerGraph(InMemoryDataset):
                     y = ["p_mw", "q_mvar","vm_pu", "va_degree"]
                     boundaries[:,4:6] = merged_df[["min_vm_pu", "max_vm_pu"]].values
 
-                data[node].boundaries = torch.Tensor(boundaries)
+                #print(self.device)
+                #print(torch.cuda.is_available())
+                #print(torch.cuda.device_count())
+                data[node].boundaries = torch.Tensor(boundaries).to(self.device)
             if opf_as_y:
 
                 if node in ["ext_grid", "gen", "sgen", "bus"] and len(getattr(network, "res_" + node)) > 0:
@@ -192,7 +197,7 @@ class PandaPowerGraph(InMemoryDataset):
                     if include_res:
                         merged_df.drop(columns=y, inplace=True)
                     pf = getattr(network, "res_" + node)[y]
-                    data[node].y = torch.Tensor(pf.values)
+                    data[node].y = torch.Tensor(pf.values).to(self.device)
 
                     if node in ["ext_grid", "gen", "sgen"]:
                         node_cost = costs[costs["et"] == node]
@@ -211,38 +216,38 @@ class PandaPowerGraph(InMemoryDataset):
                 one_hot = scaler.fit_transform(one_hot)
             
             
-            data[node].x = torch.Tensor(one_hot) if len(one_hot) else torch.zeros(1,self.num_features(node))
+            data[node].x = torch.Tensor(one_hot).to(self.device) if len(one_hot) else torch.zeros(1,self.num_features(node)).to(self.device)
             scalers[node] = scaler
 
             if "from_bus" in merged_df.columns:
                 edges_from = merged_df["from_bus"].tolist()
                 merged_df.drop(columns=["from_bus"], inplace=True)
-                data['bus', 'to', node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()])
+                data['bus', 'to', node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()]).to(self.device)
 
             if "to_bus" in merged_df.columns:
                 edges_to = merged_df["to_bus"].tolist()
                 merged_df.drop(columns=["to_bus"], inplace=True)
-                data[node, 'to', 'bus'].edge_index = torch.LongTensor([merged_df.index.tolist(), edges_to])
+                data[node, 'to', 'bus'].edge_index = torch.LongTensor([merged_df.index.tolist(), edges_to]).to(self.device)
 
             if "hv_bus" in merged_df.columns:
                 edges_from = merged_df["hv_bus"].tolist()
                 merged_df.drop(columns=["hv_bus"], inplace=True)
-                data['bus', 'to', node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()])
+                data['bus', 'to', node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()]).to(self.device)
 
                 edges_to = merged_df["lv_bus"].tolist()
                 merged_df.drop(columns=["lv_bus"], inplace=True)
-                data[node, 'to', 'bus'].edge_index = torch.LongTensor([merged_df.index.tolist(), edges_to])
+                data[node, 'to', 'bus'].edge_index = torch.LongTensor([merged_df.index.tolist(), edges_to]).to(self.device)
 
             if "mv_bus" in merged_df.columns:
                 edges_to2 = merged_df["mv_bus"].tolist()
                 merged_df.drop(columns=["mv_bus"], inplace=True)
                 data[node, 'to', 'bus'].edge_index = torch.LongTensor(
-                    [merged_df.index.tolist() + merged_df.index.tolist(), edges_to + edges_to2])
+                    [merged_df.index.tolist() + merged_df.index.tolist(), edges_to + edges_to2]).to(self.device)
 
             if "bus" in merged_df.columns:
                 edges_ = merged_df["bus"].tolist()
                 merged_df.drop(columns=["bus"], inplace=True)
-                data['bus', 'to', node].edge_index = torch.LongTensor([edges_, merged_df.index.tolist()])
+                data['bus', 'to', node].edge_index = torch.LongTensor([edges_, merged_df.index.tolist()]).to(self.device)
 
             dataframes[node] = merged_df
             edges[node] = [edges_, edges_from, edges_to, edges_to2]
