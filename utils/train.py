@@ -36,6 +36,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
     boundary_val_losses = []
     val_losses = []
     val_losses_bus = []
+    val_losses_line = []
     val_losses_gen = []
     val_losses_ext_grid  = []
     learning_rate = []
@@ -68,6 +69,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         val_loss_gen = 0
         val_loss_ext_grid = 0
         val_loss_bus = 0
+        val_loss_line = 0
 
         val_losses_all = []
         out_all = []
@@ -81,6 +83,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
                 val_loss_gen += losses[0].mean()
                 val_loss_ext_grid += losses[1].mean() if len(losses)>1 else 0
                 val_loss_bus += losses[2].mean() if len(losses) > 2 else 0
+                val_loss_line += losses[3].mean() if len(losses) > 3 else 0
 
         val_loss /= len(val_loader)
         boundary_loss /= len(val_loader)
@@ -100,8 +103,11 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         val_loss_bus /= len(val_loader)
         val_losses_bus.append(val_loss_bus)
 
+        val_loss_line /= len(val_loader)
+        val_losses_line.append(val_loss_line)
+
     print("Training over")
-    return train_losses, val_losses, (val_losses_gen, val_losses_ext_grid,val_losses_bus), (out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
+    return train_losses, val_losses, (val_losses_gen, val_losses_ext_grid,val_losses_bus, val_losses_line), (out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
 
 def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True, 
                use_boundary_loss=True):

@@ -22,7 +22,7 @@ import pickle
 def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=None,
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
-             max_epochs=500, y_nodes=["gen", "ext_grid", "bus"], train_batch_size=5, val_batch_size=5,
+             max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64,64,64]):
     if not uniqueid:
         uniqueid = uuid.uuid4()
@@ -108,7 +108,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
 
-    val_losses_gen, val_losses_ext_grid, val_losses_bus = val_losses_nodes
+    val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
                                                         use_ray=use_ray)
 
@@ -120,7 +120,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                 "val_losses": val_losses,
                 "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
                 "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
-                "val_losses_bus": val_losses_bus}
+                "val_losses_bus": val_losses_bus, "val_losses_line":val_losses_line}
 
     with open(save_path + "/losses.json", "w") as outfile:
         json.dump(log_dict, outfile)
@@ -147,6 +147,7 @@ if __name__ == "__main__":
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
     hash_path = hashlib.md5(hash_path.encode()).hexdigest()
+    hash_path = hash(hash_path)
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=32,
              title="generalization load_relative", save_path=f"./output",
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
