@@ -178,13 +178,20 @@ class PandaPowerGraph(InMemoryDataset):
                 boundaries = np.nan * np.ones((len(merged_df), 6))
                 if node == "ext_grid":
                     y = ["p_mw", "q_mvar"]
+                    drop_y = y
                     boundaries[:,0:4] = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
                 elif node in ["sgen", "gen"]:
                     y = ["p_mw", "q_mvar", "vm_pu", "va_degree"]
+                    drop_y = y
                     boundaries[:,0:4] = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
-                if node in ["bus"]:
+                elif node in ["bus"]:
                     y = ["p_mw", "q_mvar","vm_pu", "va_degree"]
                     boundaries[:,4:6] = merged_df[["min_vm_pu", "max_vm_pu"]].values
+                    drop_y = y
+                elif node in ["line"]:
+                    y = ["pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
+                    drop_y = y
+                    boundaries[:,5:6] = merged_df[["max_i_ka"]].values
 
                 #print(self.device)
                 #print(torch.cuda.is_available())
@@ -192,10 +199,10 @@ class PandaPowerGraph(InMemoryDataset):
                 data[node].boundaries = torch.Tensor(boundaries).to(self.device)
             if opf_as_y:
 
-                if node in ["ext_grid", "gen", "sgen", "bus"] and len(getattr(network, "res_" + node)) > 0:
+                if node in ["ext_grid", "gen", "sgen", "bus","line"] and len(getattr(network, "res_" + node)) > 0:
                     merged_df = merged_df.rename(columns={"p_mw_y": "p_mw", "vm_pu_y": "vm_pu"})
                     if include_res:
-                        merged_df.drop(columns=y, inplace=True)
+                        merged_df.drop(columns=drop_y, inplace=True)
                     pf = getattr(network, "res_" + node)[y]
                     data[node].y = torch.Tensor(pf.values).to(self.device)
 
