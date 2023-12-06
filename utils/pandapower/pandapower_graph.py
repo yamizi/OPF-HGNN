@@ -175,7 +175,7 @@ class PandaPowerGraph(InMemoryDataset):
 
 
             if len(merged_df):
-                boundaries = np.nan * np.ones((len(merged_df), 6))
+                boundaries = np.nan * np.ones((len(merged_df), 8))
                 if node == "ext_grid":
                     y = ["p_mw", "q_mvar"]
                     drop_y = y
@@ -191,7 +191,8 @@ class PandaPowerGraph(InMemoryDataset):
                 elif node in ["line"]:
                     y = ["pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
                     drop_y = y
-                    boundaries[:,5:6] = merged_df[["max_i_ka"]].values
+                    max_lines = merged_df[["max_i_ka"]].values
+                    boundaries[:,4:8] = np.concatenate([np.zeros_like(max_lines),max_lines, np.zeros_like(max_lines),max_lines],1)
 
                 #print(self.device)
                 #print(torch.cuda.is_available())

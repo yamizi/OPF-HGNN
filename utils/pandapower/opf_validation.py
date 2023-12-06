@@ -26,6 +26,14 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf, delta=1e-8
                                                                                         node]][:,3:4].cpu().numpy()
             getattr(network, node)[["min_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4].cpu().numpy()*(1-delta*10)
 
+        elif node == "line":
+            max_lines = getattr(network, node)[["max_i_ka"]].values
+            valid_i_from = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:, 4:5].cpu().numpy() < max_lines
+            valid_i_to = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:, 6:7].cpu().numpy() < max_lines
+
+            valid_min = valid_i_from
+            valid_max = valid_i_to
+
         else:
             valid_max = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2].cpu().numpy() < getattr(network,node)[["max_p_mw","max_q_mvar"]].values
             getattr(network,node)[["max_p_mw","max_q_mvar"]] = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2].cpu().numpy()*(1+delta*10)
