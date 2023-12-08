@@ -205,7 +205,11 @@ class PandaPowerGraph(InMemoryDataset):
                     if include_res:
                         merged_df.drop(columns=drop_y, inplace=True)
                     pf = getattr(network, "res_" + node)[y]
-                    data[node].y = torch.Tensor(pf.values).to(self.device)
+                    values = torch.Tensor(pf.values).to(self.device)
+                    # Normalize P & Q with nominal voltage
+                    values[:, 0] = values[:, 0] / network.sn_mva
+                    values[:, 1] = values[:, 1] / network.sn_mva
+                    data[node].y = values
 
                     if node in ["ext_grid", "gen", "sgen"]:
                         node_cost = costs[costs["et"] == node]
