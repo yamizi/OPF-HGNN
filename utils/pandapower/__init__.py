@@ -78,7 +78,7 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
     elif dataset_type=="y_OPF":
         graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=True, preprocess='metapath2vec',
                         transform=T.Compose(transforms),scale=scale, hetero=hetero, device=device)
-    if dataset_type=="no_y_OPF":
+    elif dataset_type=="no_y_OPF":
         graph_y = PandaPowerGraph(network,include_res=True,opf_as_y=False, preprocess='metapath2vec',
                         transform=T.Compose(transforms),scale=scale, hetero=hetero, device=device)
         
