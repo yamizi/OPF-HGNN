@@ -1,6 +1,7 @@
 import os.path
 import sys
 import hashlib
+
 sys.path.append(".")
 import uuid
 from matplotlib import pyplot as plt
@@ -23,7 +24,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
-             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64,64,64]):
+             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64, 64, 64],
+             base_lr=0.1, decay_lr=0.5):
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -40,12 +42,15 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         experiment.log_parameters({"uniqueid": uniqueid, "max_epochs": max_epochs, "dataset_type": dataset_type,
                                    "scale": scale, "type": "hetero", "opf": opf, "use_ray": use_ray,
                                    "save_path": save_path, "title": title, "y_nodes": y_nodes, "plot": plot,
-                                   "device": device, "train_batch_size": train_batch_size,"hidden_channels":hidden_channels,
-                                   "val_batch_size": val_batch_size, "pickle_file":pickle_file})
+                                   "device": device, "train_batch_size": train_batch_size,
+                                   "hidden_channels": hidden_channels,
+                                   "val_batch_size": val_batch_size, "pickle_file": pickle_file,
+                                   "base_lr": base_lr})
 
-    if(os.path.exists(pickle_file)):
+    if (os.path.exists(pickle_file)):
         loaded = pickle.load(open(pickle_file, "rb"))
-        train_graphs, train_networks, val_graphs, valid_networks = loaded.get("train_graphs"), loaded.get("train_networks"), loaded.get("val_graphs"), loaded.get("valid_networks")
+        train_graphs, train_networks, val_graphs, valid_networks = loaded.get("train_graphs"), loaded.get(
+            "train_networks"), loaded.get("val_graphs"), loaded.get("valid_networks")
         train_case_name, nb_graph, mutation_rate, mutations = training_cases[0]
         val_case_name, nb_graphs, mutation_rate, mutations = validation_case
 
@@ -63,7 +68,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
         train_graphs = []
-        train_networks = {"original": [],"mutants": []}
+        train_networks = {"original": [], "mutants": []}
         nb_graphs = 0
         train_case_name = ""
         for training_case in training_cases:
@@ -90,8 +95,6 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
             pickle.dump({"train_graphs": train_graphs, "train_networks": train_networks, "val_graphs": val_graphs,
                          "valid_networks": valid_networks}, f)
 
-
-
     train_loader = DataLoader([g[0].to(device) for g in train_graphs], batch_size=train_batch_size)
     val_loader = DataLoader([g[0].to(device) for g in val_graphs], batch_size=val_batch_size)
 
@@ -106,7 +109,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     print("model device", next(model.parameters()).device)
 
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, b_val_losses, lr = train_opf(
-        model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device)
+        model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device,
+        base_lr=base_lr, decay_lr=decay_lr)
 
     val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
@@ -120,7 +124,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                 "val_losses": val_losses,
                 "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
                 "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
-                "val_losses_bus": val_losses_bus, "val_losses_line":val_losses_line}
+                "val_losses_bus": val_losses_bus, "val_losses_line": val_losses_line}
 
     with open(save_path + "/losses.json", "w") as outfile:
         json.dump(log_dict, outfile)

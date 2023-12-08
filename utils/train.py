@@ -23,10 +23,10 @@ def boundary_loss(boundaries,y, node=""):
     #return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
-              device="cpu",decayRate = 0.3, hetero=True):
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+              device="cpu",decay_lr = 0.3, hetero=True, base_lr=0.01):
+    optimizer = torch.optim.Adam(model.parameters(), lr=base_lr)
     milestones=[max_epochs//2,(max_epochs*3)//4,(max_epochs*9)//10]
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones,gamma=decayRate)
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones,gamma=decay_lr)
 
     loss_fn = torch.nn.MSELoss(reduction="none")
     loss_fn = masked_loss
