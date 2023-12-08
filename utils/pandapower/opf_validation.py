@@ -17,19 +17,18 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf, delta=1e-8
             continue
 
         if node=="bus":
-            valid_max = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4].cpu().numpy() < getattr(network, node)[
+            Vm = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,2:3].cpu().numpy()
+            valid_max =  Vm <= getattr(network, node)[
                 ["max_vm_pu"]].values
-            getattr(network, node)[["max_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4].cpu().numpy()*(1+delta*10)
+            getattr(network, node)[["max_vm_pu"]] = Vm*(1+delta*10)
 
-            valid_min = getattr(network, node)[["min_vm_pu"]].values < values[
-                                                                                    i * nb_gens[node]:(i + 1) * nb_gens[
-                                                                                        node]][:,3:4].cpu().numpy()
-            getattr(network, node)[["min_vm_pu"]] = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:,3:4].cpu().numpy()*(1-delta*10)
+            valid_min = getattr(network, node)[["min_vm_pu"]].values <= Vm
+            getattr(network, node)[["min_vm_pu"]] = Vm*(1-delta*10)
 
         elif node == "line":
             max_lines = getattr(network, node)[["max_i_ka"]].values
-            valid_i_from = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:, 4:5].cpu().numpy() < max_lines
-            valid_i_to = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:, 6:7].cpu().numpy() < max_lines
+            valid_i_from = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:, 2:3].cpu().numpy() <= max_lines
+            valid_i_to = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:, 3:4].cpu().numpy() <= max_lines
 
             valid_min = valid_i_from
             valid_max = valid_i_to
@@ -37,10 +36,10 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf, delta=1e-8
         else:
 
             node_pq = values[i*nb_gens[node]:(i+1)*nb_gens[node]][:,0:2].cpu().numpy()
-            valid_max = node_pq*network.sn_mva < getattr(network,node)[["max_p_mw","max_q_mvar"]].values
+            valid_max = node_pq*network.sn_mva <= getattr(network,node)[["max_p_mw","max_q_mvar"]].values
             getattr(network,node)[["max_p_mw","max_q_mvar"]] = node_pq*network.sn_mva*(1+delta*10)
 
-            valid_min = getattr(network,node)[["min_p_mw","min_q_mvar"]].values < node_pq*network.sn_mva
+            valid_min = getattr(network,node)[["min_p_mw","min_q_mvar"]].values <= node_pq*network.sn_mva
             getattr(network,node)[["min_p_mw","min_q_mvar"]] = node_pq*network.sn_mva*(1-delta*10)
 
         print(node,": Valid min values respected:", valid_min.all(), "Valid max values respected:", valid_max.all())
