@@ -26,9 +26,15 @@ def boundary_loss(boundaries,y, node=""):
     return torch.stack(boundary_losses).sum(0)
     #return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
-def train_cv(model, train_loader, val_loader, max_epochs=20, y_nodes=["gen","ext_grid"],
-              device="cpu", hetero=True, base_lr=[0.1,1], num_outputs=4):
-    def objective(config):  # ①
+def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=100,y_nodes=["gen","ext_grid"],
+              device="cpu", hetero=True, base_lr=[0.1,1], plot=True):
+    def objective(config):
+        print("objective",config)# ①
+
+        model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
+                    out_channels=graph.num_outputs)
+        model = to_hetero(model, graph[0].metadata(), aggr='sum').to(device)
+
         optimizer = torch.optim.Adam(model.parameters(), lr=config.get("lr"))
         milestones = [max_epochs // 2, (max_epochs * 3) // 4, (max_epochs * 9) // 10]
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=config.get("decay_lr"))
@@ -54,23 +60,36 @@ def train_cv(model, train_loader, val_loader, max_epochs=20, y_nodes=["gen","ext
             train.report({"val_loss_gen": val_loss_gen,"val_loss_ext_grid":val_loss_ext_grid,
                           "val_loss_bus":val_loss_bus,"val_loss_line":val_loss_line})  # Report to Tune
 
-    search_space = {"lr": tune.loguniform(base_lr[0], base_lr[1]), "decay_lr": tune.uniform(0.1, 0.9)}
-    algo = OptunaSearch()  # ②
+    search_space = {"lr": tune.loguniform(base_lr[0], base_lr[1]), "decay_lr": tune.uniform(0.1, 0.9),
+                    "hidden_channels": tune.choice([32, 64, 128,256]), "nb_hidden_layers": tune.choice([1, 2, 3,4]),}
+    print("running optuna search on ",search_space, "for epochs", max_epochs)
+    algo = OptunaSearch(metric=["val_loss_gen","val_loss_ext_grid"], mode=["min","min"])  # ②
 
     tuner = tune.Tuner(  # ③
         objective,
         tune_config=tune.TuneConfig(
-            metric="val_loss_gen",
-            mode="min",
             search_alg=algo,
+            num_samples=num_samples,
         ),
         run_config=train.RunConfig(
-            stop={"training_iteration": 5},
+            stop={"training_iteration": max_epochs},
         ),
         param_space=search_space,
     )
     results = tuner.fit()
-    print("Best config is:", results.get_best_result().config)
+    dfs = {result.path: result.metrics_dataframe for result in results}
+    print("Best config is:", results.get_best_result() )
+
+
+    if plot:
+        ax = None  # This plots everything on the same plot
+        for d in dfs.values():
+            ax = d.val_loss_gen.plot(ax=ax, legend=True,logy =True)
+        #ax.set_ylim([-10, 10])
+        import matplotlib.pyplot as plt
+        plt.show()
+
+    return results.get_best_result().config
 
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
               device="cpu",decay_lr = 0.3, hetero=True, base_lr=0.01):

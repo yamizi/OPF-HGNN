@@ -114,8 +114,9 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         cv_train_loader = DataLoader(train_list[cv_ratio * len(train_list) // 100:], batch_size=val_batch_size)
         cv_val_loader = DataLoader(train_list[:cv_ratio * len(train_list) // 100], batch_size=train_batch_size)
 
-        train_cv(model,cv_train_loader,cv_val_loader,y_nodes=y_nodes, device=device,base_lr=[base_lr/100,base_lr*10],
-                 max_epochs=max_epochs, num_outputs=graph_y.num_outputs)
+        best_config = train_cv(cv_train_loader,cv_val_loader,y_nodes=y_nodes, device=device,base_lr=[base_lr/100,base_lr*10],
+                 max_epochs=max_epochs, graph=graph_y, num_samples=100)
+        exit()
 
     train_loader = DataLoader(train_list, batch_size=val_batch_size)
     val_loader = DataLoader([g[0].to(device) for g in val_graphs], batch_size=val_batch_size)
@@ -155,7 +156,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
 
 if __name__ == "__main__":
-    max_epochs = 5
+    max_epochs = 20
     case = "case14"
     mutation = "load_relative"
     training_case = [[case, 8, 0.7, [mutation]]]
