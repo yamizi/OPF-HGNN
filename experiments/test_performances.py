@@ -19,6 +19,7 @@ def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30"
             path = "./output/test_perf/"+project_name
             hash_path = f"{training_case}_{validation_case}"
             hash_path = hashlib.md5(hash_path.encode()).hexdigest()
+            #hash_path = hash(hash_path)
 
             run_case(training_cases=training_case,validation_case=validation_case, plot=False,
                      title="Test performance on "+mutation, save_path=path, dataset_type=dataset_type,
