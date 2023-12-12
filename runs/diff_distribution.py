@@ -14,7 +14,7 @@ from torch_geometric.nn import to_hetero
 from torch_geometric.loader import DataLoader
 from utils.models import GNN
 import torch
-from utils.train import train_opf
+from utils.train import train_opf, train_cv
 from utils.plot import plot_losses, plot_results
 import json
 import pickle
@@ -25,7 +25,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64, 64],
-             base_lr=0.1, decay_lr=0.5):
+             base_lr=0.1, decay_lr=0.5, cv_ratio=0):
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -45,9 +45,10 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                    "device": device, "train_batch_size": train_batch_size,
                                    "hidden_channels": hidden_channels,
                                    "val_batch_size": val_batch_size, "pickle_file": pickle_file,
-                                   "base_lr": base_lr})
+                                   "base_lr": base_lr,"cv_ratio":cv_ratio})
 
     if (os.path.exists(pickle_file)):
+        print("Loading existing dataset from",pickle_file)
         loaded = pickle.load(open(pickle_file, "rb"))
         train_graphs, train_networks, val_graphs, valid_networks = loaded.get("train_graphs"), loaded.get(
             "train_networks"), loaded.get("val_graphs"), loaded.get("valid_networks")
@@ -95,18 +96,31 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
             pickle.dump({"train_graphs": train_graphs, "train_networks": train_networks, "val_graphs": val_graphs,
                          "valid_networks": valid_networks}, f)
 
-    train_loader = DataLoader([g[0].to(device) for g in train_graphs], batch_size=train_batch_size)
-    val_loader = DataLoader([g[0].to(device) for g in val_graphs], batch_size=val_batch_size)
-
-    if len(train_graphs) == 0:
-        return
+    train_list = [g[0].to(device) for g in train_graphs]
 
     graph_y = train_graphs[0]
     data = graph_y[0]
+
+    if len(train_list) == 0:
+        return
+
+
     model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs)
     model = to_hetero(model, data.metadata(), aggr='sum').to(device)
 
-    print("model device", next(model.parameters()).device)
+    if cv_ratio>0:
+        print("Hyper parameter tuning model with device", device)
+
+        cv_train_loader = DataLoader(train_list[cv_ratio * len(train_list) // 100:], batch_size=val_batch_size)
+        cv_val_loader = DataLoader(train_list[:cv_ratio * len(train_list) // 100], batch_size=train_batch_size)
+
+        train_cv(model,cv_train_loader,cv_val_loader,y_nodes=y_nodes, device=device,base_lr=[base_lr/100,base_lr*10],
+                 max_epochs=max_epochs, num_outputs=graph_y.num_outputs)
+
+    train_loader = DataLoader(train_list, batch_size=val_batch_size)
+    val_loader = DataLoader([g[0].to(device) for g in val_graphs], batch_size=val_batch_size)
+
+    print("Training model with device", next(model.parameters()).device)
 
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device,
@@ -153,9 +167,10 @@ if __name__ == "__main__":
     hash_path = hashlib.md5(hash_path.encode()).hexdigest()
     #hash_path = hash(hash_path)
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=32,
-             title="generalization load_relative", save_path=f"./output",
+             title="generalization load_relative", save_path=f"./output/hp",
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
-             scale=False, filter=True, opf=opf, use_ray=False, uniqueid=hash_path)
+             scale=False, filter=True, opf=opf, use_ray=False, uniqueid=hash_path,
+             cv_ratio=20)
     plt.show()
     exit()
 

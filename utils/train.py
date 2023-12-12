@@ -2,13 +2,17 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 from utils.models import FCNN, GNN
+from torch_geometric.nn import to_hetero
+from ray import train, tune
+from ray.tune.search.optuna import OptunaSearch
+
 
 def relative_loss(yhat,y):
     criterion = torch.nn.L1Loss(reduction="none")
     #criterion = torch.nn.MSELoss(reduction="none")
     return criterion(yhat,y)/yhat.abs()
 
-def masked_loss(yhat,y):
+def node_loss(yhat,y):
     criterion = torch.nn.MSELoss(reduction="none")
     return criterion(yhat,y[:,:yhat.shape[1]])
 
@@ -22,6 +26,52 @@ def boundary_loss(boundaries,y, node=""):
     return torch.stack(boundary_losses).sum(0)
     #return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
+def train_cv(model, train_loader, val_loader, max_epochs=20, y_nodes=["gen","ext_grid"],
+              device="cpu", hetero=True, base_lr=[0.1,1], num_outputs=4):
+    def objective(config):  # ①
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.get("lr"))
+        milestones = [max_epochs // 2, (max_epochs * 3) // 4, (max_epochs * 9) // 10]
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=config.get("decay_lr"))
+
+        while True:
+            for batch in train_loader:
+                out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, node_loss, hetero)
+            lr_scheduler.step()
+
+            val_loss_gen = 0
+            val_loss_ext_grid = 0
+            val_loss_bus = 0
+            val_loss_line = 0
+
+            for batch in val_loader:
+                last_out, loss, losses, b_losses = eval_step(model, batch,None,y_nodes,node_loss, hetero)
+
+                val_loss_gen += losses[0].mean()
+                val_loss_ext_grid += losses[1].mean() if len(losses) > 1 else 0
+                val_loss_bus += losses[2].mean() if len(losses) > 2 else 0
+                val_loss_line += losses[3].mean() if len(losses) > 3 else 0
+
+            train.report({"val_loss_gen": val_loss_gen,"val_loss_ext_grid":val_loss_ext_grid,
+                          "val_loss_bus":val_loss_bus,"val_loss_line":val_loss_line})  # Report to Tune
+
+    search_space = {"lr": tune.loguniform(base_lr[0], base_lr[1]), "decay_lr": tune.uniform(0.1, 0.9)}
+    algo = OptunaSearch()  # ②
+
+    tuner = tune.Tuner(  # ③
+        objective,
+        tune_config=tune.TuneConfig(
+            metric="val_loss_gen",
+            mode="min",
+            search_alg=algo,
+        ),
+        run_config=train.RunConfig(
+            stop={"training_iteration": 5},
+        ),
+        param_space=search_space,
+    )
+    results = tuner.fit()
+    print("Best config is:", results.get_best_result().config)
+
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
               device="cpu",decay_lr = 0.3, hetero=True, base_lr=0.01):
     optimizer = torch.optim.Adam(model.parameters(), lr=base_lr)
@@ -29,7 +79,7 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones,gamma=decay_lr)
 
     loss_fn = torch.nn.MSELoss(reduction="none")
-    loss_fn = masked_loss
+    loss_fn = node_loss
 
     train_losses = []
     boundary_train_losses = []
