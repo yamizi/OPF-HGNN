@@ -26,8 +26,8 @@ def boundary_loss(boundaries,y, node=""):
     return torch.stack(boundary_losses).sum(0)
     #return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
-def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=100,y_nodes=["gen","ext_grid"],
-              device="cpu", hetero=True, base_lr=[0.1,1], plot=True):
+def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_nodes=["gen","ext_grid","bus"],
+              device="cpu", hetero=True, base_lr=[0.1,1], plot=False):
     def objective(config):
         print("objective",config)# ①
 
@@ -63,7 +63,7 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=100,y_n
     search_space = {"lr": tune.loguniform(base_lr[0], base_lr[1]), "decay_lr": tune.uniform(0.1, 0.9),
                     "hidden_channels": tune.choice([32, 64, 128,256]), "nb_hidden_layers": tune.choice([1, 2, 3,4]),}
     print("running optuna search on ",search_space, "for epochs", max_epochs)
-    algo = OptunaSearch(metric=["val_loss_gen","val_loss_ext_grid"], mode=["min","min"])  # ②
+    algo = OptunaSearch(metric=["val_loss_bus"], mode=["min"], space=search_space)  # ②
 
     tuner = tune.Tuner(  # ③
         objective,
@@ -73,26 +73,24 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=100,y_n
         ),
         run_config=train.RunConfig(
             stop={"training_iteration": max_epochs},
-        ),
-        param_space=search_space,
+        )
     )
     results = tuner.fit()
-    dfs = {result.path: result.metrics_dataframe for result in results}
-    print("Best config is:", results.get_best_result() )
-
-
+    dfs = {result.path.split("/")[-1]: result.metrics_dataframe for result in results}
     if plot:
         ax = None  # This plots everything on the same plot
         for d in dfs.values():
-            ax = d.val_loss_gen.plot(ax=ax, legend=True,logy =True)
+            ax = d.val_loss_gen.plot(ax=ax, legend=False,logy =True)
         #ax.set_ylim([-10, 10])
         import matplotlib.pyplot as plt
         plt.show()
 
-    return results.get_best_result().config
+    best_result = results.get_best_result("val_loss_gen","min")
+    print("Best config is:", best_result.metrics,best_result.config)
+    return results.get_best_result("val_loss_gen","min").config , dfs
 
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
-              device="cpu",decay_lr = 0.3, hetero=True, base_lr=0.01):
+              device="cpu",decay_lr = 0.3, hetero=True, base_lr=0.01, experiment=None):
     optimizer = torch.optim.Adam(model.parameters(), lr=base_lr)
     milestones=[max_epochs//2,(max_epochs*3)//4,(max_epochs*9)//10]
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones,gamma=decay_lr)
@@ -115,23 +113,23 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
         learning_rate.append(lr)
 
         train_loss = 0
-        boundary_loss = 0
+        boundary_train_loss = 0
         for batch in train_loader:
             out, loss, losses, b_losses = train_step(model, optimizer,batch,None,y_nodes,loss_fn, hetero)
             train_loss += loss
-            boundary_loss+= np.concatenate(b_losses,0).max() if len(b_losses) else 0
+            boundary_train_loss+= np.concatenate(b_losses,0).max() if len(b_losses) else 0
 
         lr_scheduler.step()
         train_loss /= len(train_loader)
-        boundary_loss /= len(train_loader)
+        boundary_train_loss /= len(train_loader)
 
         if epoch % log_every == 0:
             print("epoch",epoch)
             print("training loss",train_loss)
-            print("boundary loss",boundary_loss)
+            print("boundary loss",boundary_train_loss)
 
         train_losses.append(train_loss)
-        boundary_train_losses.append(boundary_loss)
+        boundary_train_losses.append(boundary_train_loss)
 
         val_loss = 0
         boundary_loss = 0
@@ -174,6 +172,14 @@ def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ex
 
         val_loss_line /= len(val_loader)
         val_losses_line.append(val_loss_line)
+
+        if experiment is not None:
+            log_dict = {"train_losses": train_loss,
+                        "val_losses": val_loss,
+                        "b_train_losses": boundary_train_loss, "b_val_losses": boundary_loss, "learning_rate": lr,
+                        "val_losses_gen": val_loss_gen, "val_losses_ext_grid": val_loss_ext_grid,
+                        "val_losses_bus": val_loss_bus, "val_losses_line": val_loss_line}
+            experiment.log_metrics(log_dict)
 
     print("Training over")
     return train_losses, val_losses, (val_losses_gen, val_losses_ext_grid,val_losses_bus, val_losses_line), (out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
