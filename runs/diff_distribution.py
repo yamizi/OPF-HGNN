@@ -24,7 +24,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
-             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64, 64],
+             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[128],
              base_lr=0.1, decay_lr=0.5, cv_ratio=0):
     if not uniqueid:
         uniqueid = uuid.uuid4()
@@ -105,19 +105,25 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         return
 
 
-    model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs)
-    model = to_hetero(model, data.metadata(), aggr='sum').to(device)
-
     if cv_ratio>0:
         print("Hyper parameter tuning model with device", device)
+        cv_list =  train_list[:min(len(train_list),1000)]
+        cv_train = cv_list[cv_ratio * len(cv_list) // 100:]
+        cv_train_loader = DataLoader(cv_train, batch_size=val_batch_size)
+        cv_val = cv_list[:cv_ratio * len(cv_list) // 100]
+        cv_val_loader = DataLoader(cv_val, batch_size=train_batch_size)
 
-        cv_train_loader = DataLoader(train_list[cv_ratio * len(train_list) // 100:], batch_size=val_batch_size)
-        cv_val_loader = DataLoader(train_list[:cv_ratio * len(train_list) // 100], batch_size=train_batch_size)
+        best_config, metrics_dataframe = train_cv(cv_train_loader,cv_val_loader,y_nodes=y_nodes, device=device,base_lr=[base_lr/100,base_lr*10],
+                 max_epochs=max_epochs//5, graph=graph_y, num_samples=100)
 
-        best_config = train_cv(cv_train_loader,cv_val_loader,y_nodes=y_nodes, device=device,base_lr=[base_lr/100,base_lr*10],
-                 max_epochs=max_epochs, graph=graph_y, num_samples=100)
-        exit()
+        [experiment.log_dataframe_profile(df, v) for (df,v) in metrics_dataframe.items()]
+        experiment.log_parameters(best_config,prefix="best_")
+        decay_lr = best_config["decay_lr"]
+        base_lr = best_config["lr"]
+        hidden_channels = [best_config["hidden_channels"]] * best_config["nb_hidden_layers"]
 
+    model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs)
+    model = to_hetero(model, data.metadata(), aggr='sum').to(device)
     train_loader = DataLoader(train_list, batch_size=val_batch_size)
     val_loader = DataLoader([g[0].to(device) for g in val_graphs], batch_size=val_batch_size)
 
@@ -125,7 +131,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device,
-        base_lr=base_lr, decay_lr=decay_lr)
+        base_lr=base_lr, decay_lr=decay_lr, experiment=experiment)
 
     val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
@@ -135,8 +141,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
     log_dict = {"constraint_boundary": constrained_networks[:, 1].tolist(),
                 "constraint_opf": constrained_networks[:, 0].tolist(),
-                "constraint": constrained_networks.prod(1).tolist(), "train_losses": train_losses,
-                "val_losses": val_losses,
+                "constraint": constrained_networks.prod(1).tolist()}
+    epoch_dict={"train_losses": train_losses,"val_losses": val_losses,
                 "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
                 "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
                 "val_losses_bus": val_losses_bus, "val_losses_line": val_losses_line}
@@ -156,7 +162,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
 
 if __name__ == "__main__":
-    max_epochs = 20
+    max_epochs = 500
     case = "case14"
     mutation = "load_relative"
     training_case = [[case, 8, 0.7, [mutation]]]
