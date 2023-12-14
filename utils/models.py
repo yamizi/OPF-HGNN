@@ -1,11 +1,14 @@
 import torch
-from torch_geometric.nn import SAGEConv, Linear, GCNConv
+from torch_geometric.nn import SAGEConv, Linear, GraphConv, GATConv
 from torch.nn import Linear as Linear2d
 from collections import OrderedDict
 
+CLS_MAP = {"sage": (SAGEConv,{"in_channels":(-1,-1)}), "gcn": (GraphConv,{"in_channels":-1,"add_self_loops":False}), "gat": (GATConv,{
+    "in_channels":(-1,-1),"add_self_loops":False})}
 
 class GNN(torch.nn.Module):
-    def __init__(self, hidden_channels, out_channels,initial_channels=None):
+    def __init__(self, hidden_channels, out_channels,initial_channels=None, aggr="mean", cls="sage"):
+        #aggr can be mean, max or lstm
         super().__init__()
 
         if isinstance(hidden_channels, int):
@@ -15,10 +18,14 @@ class GNN(torch.nn.Module):
             initial_channels = hidden_channels[0]*2
 
         nb_hidden_layers = len(hidden_channels)
+        CLS, cls_params = CLS_MAP[cls]
 
-        self.first_conv = SAGEConv((-1, -1), initial_channels)
+        params = {"out_channels":initial_channels, "aggr":aggr,**cls_params}
+        #print("1 graph ", cls, params)
+        self.first_conv = CLS(**params)
         self.convs = torch.nn.ModuleDict(
-            OrderedDict([(f"conv{i}", SAGEConv((-1, -1), hidden_channels[i])) for i in range(nb_hidden_layers)]))
+            OrderedDict([(f"conv{i}", CLS(out_channels=hidden_channels[i],aggr=aggr, **cls_params)) for i in range(nb_hidden_layers)]))
+        #print(self.convs)
         self.linear = Linear(hidden_channels[-1], out_channels)
 
     def forward(self, x, edge_index):
