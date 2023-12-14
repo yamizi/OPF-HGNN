@@ -24,7 +24,7 @@ def run(mutations = ["cost", "load_relative"],cases = ["case9","case14","case30"
             run_case(training_cases=training_case,validation_case=validation_case, plot=False,
                      title="Test performance on "+mutation, save_path=path, dataset_type=dataset_type,
                      experiment=experiment,train_batch_size=256,val_batch_size=512,scale=scale,
-                     device=device, opf=opf,use_ray=use_ray,uniqueid=hash_path, max_epochs=epochs)
+                     device=device, opf=opf,use_ray=use_ray,uniqueid=hash_path, max_epochs=epochs,cv_ratio=20)
 
 
 if __name__ == "__main__":

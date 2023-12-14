@@ -25,7 +25,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[128],
-             base_lr=0.1, decay_lr=0.5, cv_ratio=0):
+             base_lr=0.1, decay_lr=0.5, cv_ratio=0,cls="gcn",aggr="mean"):
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -45,7 +45,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                    "device": device, "train_batch_size": train_batch_size,
                                    "hidden_channels": hidden_channels,
                                    "val_batch_size": val_batch_size, "pickle_file": pickle_file,
-                                   "base_lr": base_lr,"cv_ratio":cv_ratio})
+                                   "base_lr": base_lr,"cv_ratio":cv_ratio, "cls":cls,"aggr":aggr})
 
     if (os.path.exists(pickle_file)):
         print("Loading existing dataset from",pickle_file)
@@ -121,8 +121,10 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         decay_lr = best_config["decay_lr"]
         base_lr = best_config["lr"]
         hidden_channels = [best_config["hidden_channels"]] * best_config["nb_hidden_layers"]
+        cls = best_config["cls"]
+        aggr = best_config["aggr"]
 
-    model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs)
+    model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr,cls=cls)
     model = to_hetero(model, data.metadata(), aggr='sum').to(device)
     train_loader = DataLoader(train_list, batch_size=val_batch_size)
     val_loader = DataLoader([g[0].to(device) for g in val_graphs], batch_size=val_batch_size)

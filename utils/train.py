@@ -32,7 +32,7 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_no
         print("objective",config)# ①
 
         model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
-                    out_channels=graph.num_outputs)
+                    out_channels=graph.num_outputs, aggr=config.get("aggr"), cls=config.get("cls"))
         model = to_hetero(model, graph[0].metadata(), aggr='sum').to(device)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=config.get("lr"))
@@ -61,9 +61,11 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_no
                           "val_loss_bus":val_loss_bus,"val_loss_line":val_loss_line})  # Report to Tune
 
     search_space = {"lr": tune.loguniform(base_lr[0], base_lr[1]), "decay_lr": tune.uniform(0.1, 0.9),
-                    "hidden_channels": tune.choice([32, 64, 128,256]), "nb_hidden_layers": tune.choice([1, 2, 3,4]),}
+                    "hidden_channels": tune.choice([32, 64, 128,256]), "nb_hidden_layers": tune.choice([1, 2, 3,4]),
+                    "aggr": tune.choice(["mean", "max"]), "cls": tune.choice(["gcn", "sage", "gat"])}
+
     print("running optuna search on ",search_space, "for epochs", max_epochs)
-    algo = OptunaSearch(metric=["val_loss_bus"], mode=["min"], space=search_space)  # ②
+    algo = OptunaSearch(metric=["val_loss_bus"], mode=["min"])  # ②
 
     tuner = tune.Tuner(  # ③
         objective,
@@ -73,7 +75,8 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_no
         ),
         run_config=train.RunConfig(
             stop={"training_iteration": max_epochs},
-        )
+        ),
+        param_space=search_space
     )
     results = tuner.fit()
     dfs = {result.path.split("/")[-1]: result.metrics_dataframe for result in results}
