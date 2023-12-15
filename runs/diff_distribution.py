@@ -25,7 +25,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[128],
-             base_lr=0.1, decay_lr=0.5, cv_ratio=0,cls="gcn",aggr="mean"):
+             base_lr=0.1, decay_lr=0.5, cv_ratio=0,cls="gcn",aggr="mean", num_samples=100):
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -114,7 +114,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         cv_val_loader = DataLoader(cv_val, batch_size=train_batch_size)
 
         best_config, metrics_dataframe = train_cv(cv_train_loader,cv_val_loader,y_nodes=y_nodes, device=device,base_lr=[base_lr/100,base_lr*10],
-                 max_epochs=max_epochs//5, graph=graph_y, num_samples=100)
+                 max_epochs=max_epochs//5, graph=graph_y, num_samples=num_samples, plot=plot)
 
         [experiment.log_dataframe_profile(df, v) for (df,v) in metrics_dataframe.items()]
         experiment.log_parameters(best_config,prefix="best_")
@@ -164,7 +164,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
 
 if __name__ == "__main__":
-    max_epochs = 500
+    max_epochs = 100
     case = "case14"
     mutation = "load_relative"
     training_case = [[case, 8, 0.7, [mutation]]]

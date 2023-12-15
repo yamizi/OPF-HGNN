@@ -65,7 +65,10 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_no
                     "aggr": tune.choice(["mean", "max"]), "cls": tune.choice(["gcn", "sage", "gat"])}
 
     print("running optuna search on ",search_space, "for epochs", max_epochs)
-    algo = OptunaSearch(metric=["val_loss_bus"], mode=["min"])  # ②
+
+    metrics = ["val_loss_bus","val_loss_gen","val_loss_ext_grid"]
+    #metrics = ["val_loss_gen", "val_loss_ext_grid"]
+    algo = OptunaSearch(metric=metrics, mode=["min"]*len(metrics))  # ②
 
     tuner = tune.Tuner(  # ③
         objective,
@@ -80,6 +83,9 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_no
     )
     results = tuner.fit()
     dfs = {result.path.split("/")[-1]: result.metrics_dataframe for result in results}
+    best_result = results.get_best_result("val_loss_gen", "min")
+    print("Best config is:", best_result.metrics, best_result.config)
+
     if plot:
         ax = None  # This plots everything on the same plot
         for d in dfs.values():
@@ -88,8 +94,6 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_no
         import matplotlib.pyplot as plt
         plt.show()
 
-    best_result = results.get_best_result("val_loss_gen","min")
-    print("Best config is:", best_result.metrics,best_result.config)
     return results.get_best_result("val_loss_gen","min").config , dfs
 
 def train_opf(model,train_loader, val_loader, max_epochs=200, y_nodes=["gen","ext_grid"], log_every=10,
