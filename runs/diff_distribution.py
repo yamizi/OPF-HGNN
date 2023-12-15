@@ -25,7 +25,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[128],
-             base_lr=0.1, decay_lr=0.5, cv_ratio=0,cls="gcn",aggr="mean", num_samples=100):
+             base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="gcn", aggr="mean", num_samples=100):
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -43,13 +43,14 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                    "scale": scale, "type": "hetero", "opf": opf, "use_ray": use_ray,
                                    "save_path": save_path, "title": title, "y_nodes": y_nodes, "plot": plot,
                                    "device": device, "train_batch_size": train_batch_size,
-                                   "hidden_channels": hidden_channels,
+                                   "hidden_channels": hidden_channels, "num_samples": num_samples,
                                    "val_batch_size": val_batch_size, "pickle_file": pickle_file,
-                                   "base_lr": base_lr,"cv_ratio":cv_ratio, "cls":cls,"aggr":aggr})
+                                   "base_lr": base_lr, "cv_ratio": cv_ratio, "cls": cls, "aggr": aggr})
 
     if (os.path.exists(pickle_file)):
-        print("Loading existing dataset from",pickle_file)
-        loaded = pickle.load(open(pickle_file, "rb"))
+        with open(pickle_file, "rb") as pickled:
+            print("Loading existing dataset from", pickle_file)
+            loaded = pickle.load(pickled)
         train_graphs, train_networks, val_graphs, valid_networks = loaded.get("train_graphs"), loaded.get(
             "train_networks"), loaded.get("val_graphs"), loaded.get("valid_networks")
         train_case_name, nb_graph, mutation_rate, mutations = training_cases[0]
@@ -104,27 +105,26 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     if len(train_list) == 0:
         return
 
-
-    if cv_ratio>0:
+    if cv_ratio > 0:
+        num_graphs = min(1000, len(train_list))
         print("Hyper parameter tuning model with device", device)
-        cv_list =  train_list[:min(len(train_list),1000)]
-        cv_train = cv_list[cv_ratio * len(cv_list) // 100:]
-        cv_train_loader = DataLoader(cv_train, batch_size=val_batch_size)
-        cv_val = cv_list[:cv_ratio * len(cv_list) // 100]
-        cv_val_loader = DataLoader(cv_val, batch_size=train_batch_size)
-
-        best_config, metrics_dataframe = train_cv(cv_train_loader,cv_val_loader,y_nodes=y_nodes, device=device,base_lr=[base_lr/100,base_lr*10],
-                 max_epochs=max_epochs//5, graph=graph_y, num_samples=num_samples, plot=plot)
-
-        [experiment.log_dataframe_profile(df, v) for (df,v) in metrics_dataframe.items()]
-        experiment.log_parameters(best_config,prefix="best_")
+        best_config, metrics_dataframe = train_cv(pickle_file, cv_ratio, y_nodes=y_nodes, device=device,
+                                                  base_lr=[base_lr / 100, base_lr * 10],
+                                                  max_epochs=max_epochs // 5, graph=graph_y, num_samples=num_samples,
+                                                  plot=plot, num_graphs=num_graphs,
+                                                  train_batch_size=train_batch_size,
+                                                  val_batch_size=val_batch_size
+                                                  )
+        best_config["num_graphs"]=num_graphs
+        [experiment.log_dataframe_profile(df, v) for (df, v) in metrics_dataframe.items()]
+        experiment.log_parameters(best_config, prefix="hp_")
         decay_lr = best_config["decay_lr"]
         base_lr = best_config["lr"]
         hidden_channels = [best_config["hidden_channels"]] * best_config["nb_hidden_layers"]
         cls = best_config["cls"]
         aggr = best_config["aggr"]
 
-    model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr,cls=cls)
+    model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr, cls=cls)
     model = to_hetero(model, data.metadata(), aggr='sum').to(device)
     train_loader = DataLoader(train_list, batch_size=val_batch_size)
     val_loader = DataLoader([g[0].to(device) for g in val_graphs], batch_size=val_batch_size)
@@ -144,10 +144,10 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     log_dict = {"constraint_boundary": constrained_networks[:, 1].tolist(),
                 "constraint_opf": constrained_networks[:, 0].tolist(),
                 "constraint": constrained_networks.prod(1).tolist()}
-    epoch_dict={"train_losses": train_losses,"val_losses": val_losses,
-                "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
-                "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
-                "val_losses_bus": val_losses_bus, "val_losses_line": val_losses_line}
+    epoch_dict = {"train_losses": train_losses, "val_losses": val_losses,
+                  "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
+                  "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
+                  "val_losses_bus": val_losses_bus, "val_losses_line": val_losses_line}
 
     with open(save_path + "/losses.json", "w") as outfile:
         json.dump(log_dict, outfile)
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
     hash_path = hashlib.md5(hash_path.encode()).hexdigest()
-    #hash_path = hash(hash_path)
+    # hash_path = hash(hash_path)
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=32,
              title="generalization load_relative", save_path=f"./output/hp",
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",

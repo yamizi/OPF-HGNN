@@ -3,9 +3,10 @@ import torch
 import numpy as np
 from utils.models import FCNN, GNN
 from torch_geometric.nn import to_hetero
-from ray import train, tune
+from ray import train, tune, init
 from ray.tune.search.optuna import OptunaSearch
-
+from torch_geometric.loader import DataLoader
+import pickle
 
 def relative_loss(yhat,y):
     criterion = torch.nn.L1Loss(reduction="none")
@@ -26,8 +27,24 @@ def boundary_loss(boundaries,y, node=""):
     return torch.stack(boundary_losses).sum(0)
     #return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
-def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_nodes=["gen","ext_grid","bus"],
-              device="cpu", hetero=True, base_lr=[0.1,1], plot=False):
+def train_cv(pickle_file, cv_ratio,graph,  max_epochs=20, num_samples=10,y_nodes=["gen","ext_grid","bus"],
+              device="cpu", hetero=True, base_lr=[0.1,1], plot=False, num_graphs=1000, train_batch_size=32,
+             val_batch_size=32):
+
+
+    with open(pickle_file, "rb") as pickled:
+        print("Loading cross validation dataset from", pickle_file)
+        loaded = pickle.load(pickled)
+
+    train_graphs = loaded.get("train_graphs")
+
+    train_list = [train_graphs[i][0].to(device) for i in range(num_graphs) ]
+    cv_list = train_list[:min(len(train_list), 1000)]
+    cv_train = cv_list[cv_ratio * len(cv_list) // 100:]
+    train_loader = DataLoader(cv_train, batch_size=val_batch_size)
+    cv_val = cv_list[:cv_ratio * len(cv_list) // 100]
+    val_loader = DataLoader(cv_val, batch_size=train_batch_size)
+
     def objective(config):
         print("objective",config)# ①
 
@@ -64,11 +81,13 @@ def train_cv(train_loader, val_loader,graph,  max_epochs=20, num_samples=10,y_no
                     "hidden_channels": tune.choice([32, 64, 128,256]), "nb_hidden_layers": tune.choice([1, 2, 3,4]),
                     "aggr": tune.choice(["mean", "max"]), "cls": tune.choice(["gcn", "sage", "gat"])}
 
-    print("running optuna search on ",search_space, "for epochs", max_epochs)
+    print("running optuna search on ",search_space, "for epochs", max_epochs, "and size",len(train_loader.dataset) )
 
     metrics = ["val_loss_bus","val_loss_gen","val_loss_ext_grid"]
     #metrics = ["val_loss_gen", "val_loss_ext_grid"]
     algo = OptunaSearch(metric=metrics, mode=["min"]*len(metrics))  # ②
+
+    init(num_cpus=10)
 
     tuner = tune.Tuner(  # ③
         objective,
