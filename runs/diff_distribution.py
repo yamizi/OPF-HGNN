@@ -113,9 +113,9 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                                   max_epochs=max_epochs // 5, graph=graph_y, num_samples=num_samples,
                                                   plot=plot, num_graphs=num_graphs,
                                                   train_batch_size=train_batch_size,
-                                                  val_batch_size=val_batch_size
+                                                  val_batch_size=val_batch_size, train_graphs=train_graphs
                                                   )
-        best_config["num_graphs"]=num_graphs
+        best_config["num_graphs"] = num_graphs
         [experiment.log_dataframe_profile(df, v) for (df, v) in metrics_dataframe.items()]
         experiment.log_parameters(best_config, prefix="hp_")
         decay_lr = best_config["decay_lr"]
