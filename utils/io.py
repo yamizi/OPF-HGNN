@@ -35,6 +35,6 @@ def get_parser():
     parser.add_argument('-o', '--opf', help="Scaling features", type=int, default=1)
     parser.add_argument('-r', '--ray', help="Parallelize with ray", type=int, default=0)
     parser.add_argument('-e', '--epochs', help="Max epochs", type=int, default=500)
-    parser.add_argument('-hp', '--num_samples', help="Num samples in hyper-param optimization", type=int, default=400)
+    parser.add_argument('-hp', '--num_samples', help="Num samples in hyper-param optimization", type=int, default=250)
 
     return parser

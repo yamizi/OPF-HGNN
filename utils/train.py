@@ -52,6 +52,8 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
 
     model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
                 out_channels=graph.num_outputs, aggr=config.get("aggr"), cls=config.get("cls"))
+
+    print("objective device", device)
     model = to_hetero(model, graph[0].metadata(), aggr='sum').to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.get("lr"))
@@ -105,13 +107,14 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
                     "hidden_channels": tune.choice([32, 64, 128, 256]), "nb_hidden_layers": tune.choice([1, 2, 3, 4]),
                     "aggr": tune.choice(["mean", "max"]), "cls": tune.choice(["gcn", "sage", "gat"])}
 
-    print("running optuna search on ", search_space, "for epochs", max_epochs, "and size", len(training_loader.dataset))
+    print("running optuna search on ", search_space, "for epochs", max_epochs, "and size", len(training_loader.dataset)
+          ,"using device", device)
 
     metrics = ["val_loss_bus", "val_loss_gen", "val_loss_ext_grid"]
     # metrics = ["val_loss_gen", "val_loss_ext_grid"]
     algo = OptunaSearch(metric=metrics, mode=["min"] * len(metrics))  # ②
 
-    #ray.init(num_cpus=1)
+    ray.init(num_cpus=10)
 
     tuner = tune.Tuner(  # ③
         tune.with_parameters(objective, graph=ray.put(graph), device=device, max_epochs=max_epochs, y_nodes=y_nodes,
@@ -232,7 +235,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                         "b_train_losses": boundary_train_loss, "b_val_losses": boundary_loss, "learning_rate": lr,
                         "val_losses_gen": val_loss_gen, "val_losses_ext_grid": val_loss_ext_grid,
                         "val_losses_bus": val_loss_bus, "val_losses_line": val_loss_line}
-            experiment.log_metrics(log_dict)
+            experiment.log_metrics(log_dict, epoch=epoch)
 
     print("Training over")
     return train_losses, val_losses, (val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line), (
