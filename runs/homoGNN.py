@@ -74,8 +74,12 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
     graph_y = train_graphs[0]
     model = GNN(hidden_channels=64, out_channels=graph_y.num_outputs).to(device)
 
-    train_losses, val_losses, val_losses_gen, val_losses_ext_grid, last_out, b_train_losses, b_val_losses, lr = train_opf(
+
+
+    train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device, hetero=False)
+
+    val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
 
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, hetero=False)
     
@@ -100,8 +104,8 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
 
 if __name__ == "__main__":
 
-    training_case=[["case9",32,0.7,["cost"]]]
-    validation_case=["case9",8,0.7,["cost"]]
+    training_case=[["case30",32,0.7,["cost"]]]
+    validation_case=["case30",8,0.7,["cost"]]
     
     experiment = init_comet({"cases":"case9"})
     run_case(training_cases=training_case,validation_case=validation_case, 

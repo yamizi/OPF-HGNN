@@ -24,8 +24,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
-             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[128],
-             base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="gcn", aggr="mean", num_samples=100):
+             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64],
+             base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100):
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -165,21 +165,22 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
 if __name__ == "__main__":
     max_epochs = 100
-    case = "case14"
+    case = "case9"
     mutation = "load_relative"
-    training_case = [[case, 8, 0.7, [mutation]]]
-    validation_case = [case, 2, 0.7, [mutation]]
+    training_case = [[case, 32, 0.7, [mutation]]]
+    validation_case = [case, 8, 0.7, [mutation]]
     opf = 1
+    cv_ratio = 0
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
     hash_path = hashlib.md5(hash_path.encode()).hexdigest()
     # hash_path = hash(hash_path)
-    run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=32,
+    run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=5,
              title="generalization load_relative", save_path=f"./output/hp",
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
              scale=False, filter=True, opf=opf, use_ray=False, uniqueid=hash_path,
-             cv_ratio=20)
+             cv_ratio=cv_ratio)
     plt.show()
     exit()
 
