@@ -54,7 +54,7 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
 
         dic = {**dic, "SE_P_" + node: SE_P, "relativeSE_P_" + node: relativeSE_P, "SE_Q_" + node: SE_Q,
                "relativeSE_Q_" + node: relativeSE_Q}
-        if node in ["bus", "gen", "sgen"]:
+        if node in ["bus", "gen", "sgen"] and ground_truth.shape[1]>3 and outputs.shape[1]>3:
             dic = {"Vm_pred_" + node: outputs[:, 2].cpu().numpy(), "Vm_true_" + node: ground_truth[:, 2].cpu().numpy(),
                    "Va_pred_" + node: outputs[:, 3].cpu().numpy(), "Va_true_" + node: ground_truth[:, 3].cpu().numpy(),
                    **dic}
