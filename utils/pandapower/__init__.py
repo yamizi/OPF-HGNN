@@ -133,7 +133,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
         graph_y_networks = [g for g in graph_y_network if g[0] is not None]
         graph_y, networks_y = list(zip(*graph_y_networks))
 
-        graphs = graph_y+ graph_y
+        graphs = graphs+ list(graph_y)
         networks["mutants"] =  networks["mutants"] + list(networks_y)
    
     networks["mutants"] = networks["mutants"][:nbsamples]
