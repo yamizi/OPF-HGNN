@@ -20,7 +20,14 @@ def init_comet(args, project_name="debug", workspace="hgnn"):
 
 
 def log_dict_series(dic, experiment):
-    [[experiment.log_metric(e, l, step=i) for i, l in enumerate(v)] for (e, v) in dic.items()]
+    counter = 0
+    for (e, v) in dic.items():
+        for i, l in enumerate(v):
+            experiment.log_metric(e, l, step=i)
+        counter+=len(v)
+        if counter>9000:
+            time.sleep(60)
+            counter = 0
 
 
 def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):

@@ -106,8 +106,6 @@ threadpoolctl=2.2.0=pyh0d69192_0
 tk=8.6.12=h2bbff1b_0
 toml=0.10.2=pyhd3eb1b0_0
 torch-sparse=0.6.18=pypi_0
-torchaudio=2.1.0=py311_cpu
-torchvision=0.16.0=py311_cpu
 tornado=6.3.3=py311h2bbff1b_0
 tqdm=4.66.1=pypi_0
 typing_extensions=4.7.1=py311haa95532_0

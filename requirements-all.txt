@@ -1,6 +1,3 @@
-torch
-torchvision
-torchaudio
 pandapower
 matplotlib
 torch_geometric

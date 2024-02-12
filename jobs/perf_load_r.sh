@@ -1,14 +1,14 @@
 export CUDA_VISIBLE_DEVICES=0
 DEVICE="cpu"
 SCALE=0
-PROJECT="test_perf_a2"
+PROJECT="test_perf_a3"
 DATASET="y_OPF"
 RAY=1
 HP=100
 #pip install -r "./requirements-gpu.txt"
-pip install matplotlib ray[tune] comet-ml pandapower
-pip install torch_geometric
-pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.1.0+cu118.html
+#pip install matplotlib ray[tune] comet-ml pandapower
+#pip install torch_geometric
+#pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.1.0+cu118.html
 
 
 OPF=1
