@@ -53,8 +53,11 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
     model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
                 out_channels=graph.num_outputs, aggr=config.get("aggr"), cls=config.get("cls"))
 
+
+    model = to_hetero(model, graph[0].metadata(), aggr='sum')
+
     print("objective device", device)
-    model = to_hetero(model, graph[0].metadata(), aggr='sum').to(device)
+    model = model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.get("lr"))
     milestones = [max_epochs // 2, (max_epochs * 3) // 4, (max_epochs * 9) // 10]
@@ -114,7 +117,7 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
     # metrics = ["val_loss_gen", "val_loss_ext_grid"]
     algo = OptunaSearch(metric=metrics, mode=["min"] * len(metrics))  # ②
 
-    ray.init(num_cpus=10)
+    #ray.init(num_cpus=10)
 
     tuner = tune.Tuner(  # ③
         tune.with_parameters(objective, graph=ray.put(graph), device=device, max_epochs=max_epochs, y_nodes=y_nodes,
@@ -302,6 +305,18 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     return out, float(loss), losses, boundary_losses
 
 
+def timeit(model,data, count=100000, hetero=True):
+    import time
+    return
+    nb = count // len(data)
+    params = (data.x_dict, data.edge_index_dict) if hetero else (data.x, data.edge_index)
+    begin = time.time()
+
+    for a in range(nb):
+        model(*params)
+    total = time.time() - begin
+    print(total)
+
 def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True):
     model.eval()
     if loss_f is None:
@@ -317,6 +332,9 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
 
     if hetero:
         out = model(data.x_dict, data.edge_index_dict)
+
+        timeit(model, data)
+
 
         for i, node in enumerate(feature_node):
             label = data[node].y
@@ -336,6 +354,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
         label = data.y[mask]
         if isinstance(model, GNN):
             out = model(data.x, data.edge_index)
+            timeit(model, data, hetero=False)
             output = out[mask]
             out = output
         else:

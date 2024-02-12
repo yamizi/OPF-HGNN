@@ -9,7 +9,7 @@ from torch_geometric.data import (
     InMemoryDataset
 )
 from pandapower.auxiliary import pandapowerNet
-from sklearn.preprocessing import StandardScaler
+#from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
 import json
@@ -134,9 +134,9 @@ class PandaPowerGraph(InMemoryDataset):
                 (("q_mvar" in a) or ("p_mw" in a)) and not ("min" in a or "max" in a)]
         x = merged_bus_df.drop(columns=cols)
 
-        scaler = StandardScaler()
+        scaler = None #StandardScaler()
         one_hot = pd.get_dummies(x).dropna(axis=1).values.astype("float32")
-        if scale:
+        if scale and scaler is not None:
             one_hot = scaler.fit_transform(one_hot)
         # x_dict = dict(zip(range(len(one_hot)), one_hot.tolist()))
         x_dict = dict(zip(range(len(one_hot)), torch.Tensor(one_hot).to(self.device)))
@@ -222,9 +222,9 @@ class PandaPowerGraph(InMemoryDataset):
             if node=="bus":
                 merged_df.drop(columns=["type","zone"], inplace=True)
 
-            scaler = StandardScaler()
+            scaler = None # StandardScaler()
             one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
-            if scale:
+            if scale and scaler is not None:
                 one_hot = scaler.fit_transform(one_hot)
             
             
