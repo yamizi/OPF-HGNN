@@ -27,7 +27,7 @@ def log_dataframe(dic,experiment, name, base=0, limit=0):
         experiment.log_dataframe_profile(pd.DataFrame(dic),name=f"{name}_{base}")
     else:
         for (e, v) in dic.items():
-            experiment.log_dataframe_profile(pd.DataFrame(dic), name=f"{name}_{base}_{e}")
+            experiment.log_dataframe_profile(pd.DataFrame(v), name=f"{name}_{base}_{e}")
 
 
 def log_dict_series(dic, experiment, limit=0):
