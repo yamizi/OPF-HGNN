@@ -6,7 +6,7 @@ sys.path.append(".")
 import uuid
 from matplotlib import pyplot as plt
 
-from utils.logging import init_comet, log_dict_series, log_opf
+from utils.logging import init_comet, log_dict_series, log_opf, log_dataframe
 from utils.pandapower import build_dataset, clear_duplicates
 from utils.pandapower.opf_validation import validate_opf
 from torch_geometric.nn import to_hetero
@@ -154,7 +154,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
     if experiment is not None:
         experiment.log_asset(pickle_file)
-        log_dict_series(log_dict, experiment)
+        log_dataframe(log_dict, experiment, name="metrics")
+        log_dict_series(log_dict, experiment, 1000)
         log_opf(valid_networks, val_graphs, last_out, y_nodes, experiment)
 
     if plot:

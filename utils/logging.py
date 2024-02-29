@@ -4,6 +4,7 @@ import time
 import torch
 from itertools import chain
 import numpy as np
+import pandas as pd
 
 
 def init_comet(args, project_name="debug", workspace="hgnn"):
@@ -19,12 +20,25 @@ def init_comet(args, project_name="debug", workspace="hgnn"):
     return experiment
 
 
-def log_dict_series(dic, experiment):
+def log_dataframe(dic,experiment, name, base=0, limit=0):
+    initial_val = len(list(dic.values())[0])
+    equal_nb = all([initial_val == len(val) for val in dic.values()])
+    if equal_nb:
+        experiment.log_dataframe_profile(pd.DataFrame(dic),name=f"{name}_{base}")
+    else:
+        for (e, v) in dic.items():
+            experiment.log_dataframe_profile(pd.DataFrame(dic), name=f"{name}_{base}_{e}")
+
+
+def log_dict_series(dic, experiment, limit=0):
     counter = 0
     for (e, v) in dic.items():
         for i, l in enumerate(v):
+            if limit>0 and i > limit:
+                break
             experiment.log_metric(e, l, step=i)
-        counter+=len(v)
+            counter+=1
+
         if counter>9000:
             time.sleep(60)
             counter = 0
