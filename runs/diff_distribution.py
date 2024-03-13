@@ -109,7 +109,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         num_graphs = min(1000, len(train_list))
         print("Hyper parameter tuning model with device", device)
         best_config, metrics_dataframe = train_cv(pickle_file, cv_ratio, y_nodes=y_nodes, device=device,
-                                                  base_lr=[base_lr / 100, base_lr * 10],
+                                                  base_lr=[base_lr / 100, base_lr],
                                                   max_epochs=max_epochs // 5, graph=graph_y, num_samples=num_samples,
                                                   plot=plot, num_graphs=num_graphs,
                                                   train_batch_size=train_batch_size,

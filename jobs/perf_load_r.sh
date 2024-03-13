@@ -4,7 +4,7 @@ SCALE=0
 PROJECT="test_perf_a3"
 DATASET="y_OPF"
 RAY=1
-HP=100
+HP=10
 #pip install -r "./requirements-gpu.txt"
 #pip install matplotlib ray[tune] comet-ml pandapower
 #pip install torch_geometric

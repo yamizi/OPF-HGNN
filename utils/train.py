@@ -106,7 +106,10 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
     cv_val = cv_list[:cv_ratio * len(cv_list) // 100]
     validation_loader = DataLoader(cv_val, batch_size=train_batch_size)
 
-    search_space = {"lr": tune.loguniform(base_lr[0], base_lr[1]), "decay_lr": tune.uniform(0.1, 0.9),
+    lr_space = np.logspace(np.round(base_lr[0] / np.log(10)), np.round(base_lr[0] / np.log(10)), 4, 10)
+    lr_decay = np.linspace(0.1, 0.9, 5)
+
+    search_space = {"lr": tune.choice(lr_space.tolist()), "decay_lr": tune.choice(lr_decay.tolist()),
                     "hidden_channels": tune.choice([32, 64, 128, 256]), "nb_hidden_layers": tune.choice([1, 2, 3, 4]),
                     "aggr": tune.choice(["mean", "max"]), "cls": tune.choice(["gcn", "sage", "gat"])}
 
