@@ -101,12 +101,13 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
     del train_graphs
 
     cv_list = train_list[:min(len(train_list), 1000)]
-    cv_train = cv_list[cv_ratio * len(cv_list) // 100:]
+    nb_train = int(cv_ratio * len(cv_list))
+    cv_train = cv_list[nb_train:]
     training_loader = DataLoader(cv_train, batch_size=val_batch_size)
-    cv_val = cv_list[:cv_ratio * len(cv_list) // 100]
+    cv_val = cv_list[:nb_train]
     validation_loader = DataLoader(cv_val, batch_size=train_batch_size)
 
-    lr_space = np.logspace(np.round(base_lr[0] / np.log(10)), np.round(base_lr[0] / np.log(10)), 4, 10)
+    lr_space = np.logspace(np.round(np.log(base_lr[0]) / np.log(10)), np.round(np.log(base_lr[1]) / np.log(10)), 3, 10)
     lr_decay = np.linspace(0.1, 0.9, 5)
 
     search_space = {"lr": tune.choice(lr_space.tolist()), "decay_lr": tune.choice(lr_decay.tolist()),
