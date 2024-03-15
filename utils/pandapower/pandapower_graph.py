@@ -180,7 +180,7 @@ class PandaPowerGraph(InMemoryDataset):
                     y = ["p_mw", "q_mvar"]
                     drop_y = y
                     boundaries[:,0:4] = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
-                elif node in ["sgen", "gen"]:
+                elif node in ["gen"]:
                     y = ["p_mw", "q_mvar", "vm_pu", "va_degree"]
                     drop_y = y
                     boundaries[:,0:4] = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
