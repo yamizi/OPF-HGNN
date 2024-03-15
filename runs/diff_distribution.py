@@ -6,7 +6,7 @@ sys.path.append(".")
 import uuid
 from matplotlib import pyplot as plt
 
-from utils.logging import init_comet, log_dict_series, log_opf, log_dataframe
+from utils.logging import init_comet, log_dict_series, log_opf, log_dataframe, NumpyEncoder
 from utils.pandapower import build_dataset, clear_duplicates
 from utils.pandapower.opf_validation import validate_opf
 from torch_geometric.nn import to_hetero
@@ -164,7 +164,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     relativeSE = log_opf(valid_networks, val_graphs, last_out, y_nodes, None)
     errors_file = f"{save_path}/{uniqueid}_errors.json"
     with open(errors_file, "w") as outfile:
-        json.dump(relativeSE, outfile)
+        json.dump(relativeSE, outfile, cls=NumpyEncoder)
 
     if experiment is not None:
         experiment.log_asset(pickle_file)
@@ -185,8 +185,8 @@ if __name__ == "__main__":
     case = "case1354pegase"
     case = "case9"
     mutation = "load_relative"
-    training_case = [[case, 32, 0.0, [mutation]]]
-    validation_case = [case, 8, 0.0, [mutation]]
+    training_case = [[case, 32, 0.7, [mutation]]]
+    validation_case = [case, 8, 0.7, [mutation]]
     opf = 1
     cv_ratio = 0
 

@@ -5,7 +5,14 @@ import torch
 from itertools import chain
 import numpy as np
 import pandas as pd
+import json
 
+class NumpyEncoder(json.JSONEncoder):
+    import numpy as np
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 def init_comet(args, project_name="debug", workspace="hgnn"):
     timestamp = time.time()
