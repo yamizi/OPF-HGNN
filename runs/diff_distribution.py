@@ -19,6 +19,10 @@ from utils.plot import plot_losses, plot_results
 import json
 import pickle
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+
 
 def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=None,
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
@@ -149,14 +153,26 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                   "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
                   "val_losses_bus": val_losses_bus, "val_losses_line": val_losses_line}
 
-    with open(save_path + "/losses.json", "w") as outfile:
+    losses_file = f"{save_path}/{uniqueid}_losses.json"
+    with open(losses_file, "w") as outfile:
+        json.dump(epoch_dict, outfile)
+
+    constraints_file = f"{save_path}/{uniqueid}_constraints.json"
+    with open(constraints_file, "w") as outfile:
         json.dump(log_dict, outfile)
+
+    relativeSE = log_opf(valid_networks, val_graphs, last_out, y_nodes, None)
+    errors_file = f"{save_path}/{uniqueid}_errors.json"
+    with open(errors_file, "w") as outfile:
+        json.dump(relativeSE, outfile)
 
     if experiment is not None:
         experiment.log_asset(pickle_file)
-        log_dataframe(log_dict, experiment, name="metrics")
+        experiment.log_asset(losses_file)
+        experiment.log_asset(constraints_file)
+
         log_dict_series(log_dict, experiment, 1000)
-        log_opf(valid_networks, val_graphs, last_out, y_nodes, experiment)
+        log_dict_series(relativeSE, experiment, 1000)
 
     if plot:
         plot_losses(train_losses, val_losses, val_losses_gen, val_losses_ext_grid, case_name, title, save_path)
@@ -166,10 +182,11 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
 if __name__ == "__main__":
     max_epochs = 100
-    case = "case30"
+    case = "case1354pegase"
+    case = "case9"
     mutation = "load_relative"
-    training_case = [[case, 32, 0.7, [mutation]]]
-    validation_case = [case, 8, 0.7, [mutation]]
+    training_case = [[case, 32, 0.0, [mutation]]]
+    validation_case = [case, 8, 0.0, [mutation]]
     opf = 1
     cv_ratio = 0
 

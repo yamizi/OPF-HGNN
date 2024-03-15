@@ -89,4 +89,7 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
             dic = {**dic, "SE_Vm_" + node: SE_Vm, "relativeSE_Vm_" + node: relativeSE_Vm, "SE_Va_" + node: SE_Va,
                    "relativeSE_Va_" + node: relativeSE_Va}
 
-        log_dict_series(dic, experiment)
+        if experiment:
+            log_dict_series(dic, experiment)
+        else:
+            return dic
