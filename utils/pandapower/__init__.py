@@ -57,6 +57,9 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
         if "load_relative" in mutations:
             network = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
 
+    #fix minimum r_ohm and clean diagnostic warning
+    network.line.r_ohm_per_km = network.line.r_ohm_per_km.clip(0.011)
+
     try:
         run_errors = pp.diagnostic(copy.deepcopy(network), report_style="compact")
         network.original_errors = run_errors
@@ -67,6 +70,10 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
             pp.runopp(network)
         else:
             pp.runpp(network)
+
+        if not network.OPF_converged:
+            print("not converged opf")
+            return None, None
     except Exception as e:
         print("error in opf",e)
         return None, None
@@ -115,11 +122,10 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
     graphs = []
     sample_id= 0
 
-    
-    
     while len(graphs)<nbsamples and sample_id<nbsamples*100:
         # stop if we mutated more than 100 times the size needed without finding enough valid examples
         print("sample id",sample_id)
+        sample_id = sample_id+nbsamples
 
         if use_ray:
             graph_y_network = [build_one_graph_ray.remote(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
@@ -131,7 +137,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
                         save_dataframes,case, uniqueid, experiment=experiment) for sample_id in range(nbsamples)]
 
         graph_y_networks = [g for g in graph_y_network if g[0] is not None]
-        graph_y, networks_y = list(zip(*graph_y_networks))
+        graph_y, networks_y = list(zip(*graph_y_networks)) if len(graph_y_networks) else ([],[])
 
         graphs = graphs+ list(graph_y)
         networks["mutants"] =  networks["mutants"] + list(networks_y)
