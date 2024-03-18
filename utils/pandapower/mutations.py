@@ -65,7 +65,7 @@ def mutate_loads(network, min_p=0, max_p=0,min_q=0, max_q=0, clip=False, mutatio
     network.load.loc[masked_loads[:,0].astype(int),"q_mvar"] = masked_loads[:,2]
 
 
-    return network
+    return network, masked_loads
 
 def mutate_costs(network, min_cost=10, max_cost=100, clip=False, mutation_rate=0.7):
     if clip and len(network.poly_cost):
@@ -82,4 +82,4 @@ def mutate_costs(network, min_cost=10, max_cost=100, clip=False, mutation_rate=0
     masked_costs = list(np.array(costs)[mask])
     build_costs(network,masked_costs)
 
-    return network
+    return network, masked_costs

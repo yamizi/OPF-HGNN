@@ -3,7 +3,6 @@ from torch_geometric.data import (
     HeteroData,
     InMemoryDataset
 )
-from pandapower.auxiliary import pandapowerNet
 import pandapower as pp
 
 import numpy as np
@@ -49,13 +48,13 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
 
     if mutation_rate>0:
         if "cost" in mutations:
-            network = mutate_costs(network, mutation_rate=mutation_rate)
+            network, masked = mutate_costs(network, mutation_rate=mutation_rate)
         
         if "load" in mutations:
-            network = mutate_loads(network, mutation_rate=mutation_rate)
+            network, masked = mutate_loads(network, mutation_rate=mutation_rate)
 
         if "load_relative" in mutations:
-            network = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
+            network, masked = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
 
     #fix minimum r_ohm and clean diagnostic warning
     network.line.r_ohm_per_km = network.line.r_ohm_per_km.clip(0.011)
