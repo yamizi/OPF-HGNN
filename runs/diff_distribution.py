@@ -193,7 +193,7 @@ if __name__ == "__main__":
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
     hash_path = hashlib.md5(hash_path.encode()).hexdigest()
-    # hash_path = hash(hash_path)
+    hash_path = hash(hash_path)
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=5,
              title="generalization load_relative", save_path=f"./output/hp",
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
