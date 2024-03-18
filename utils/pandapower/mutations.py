@@ -54,7 +54,7 @@ def mutate_loads(network, min_p=0, max_p=0,min_q=0, max_q=0, clip=False, mutatio
     
     mask = np.random.choice(len(loads),(int(len(loads)*mutation_rate)),replace=False)
     masked_loads = np.array(loads)[mask]
-    
+    loads = np.array(loads)[mask]
     #print("updating loads", masked_loads)
     if relative:
         masked_loads[:,1] = (masked_loads[:,1] + 1) * network.load.loc[masked_loads[:,0].astype(int),"p_mw"]
@@ -65,7 +65,7 @@ def mutate_loads(network, min_p=0, max_p=0,min_q=0, max_q=0, clip=False, mutatio
     network.load.loc[masked_loads[:,0].astype(int),"q_mvar"] = masked_loads[:,2]
 
 
-    return network, masked_loads
+    return network, loads
 
 def mutate_costs(network, min_cost=10, max_cost=100, clip=False, mutation_rate=0.7):
     if clip and len(network.poly_cost):
