@@ -37,7 +37,10 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     correct = np.where(comparisons.sum(0)==0)[0]
     train_graphs_filtered = [train_graphs[i] for i in correct]
     train_mutants_filtered = [train_networks.get("mutants")[i] for i in correct]
-    train_networks_filtered = {"mutants":train_mutants_filtered, "original":train_networks.get("original")}
+    train_convergence_filtered = [train_networks.get("convergence_time")[i] for i in correct]
+
+    train_networks_filtered = {"mutants":train_mutants_filtered, "original":train_networks.get("original"),
+                               "convergence_time":train_convergence_filtered}
     return train_graphs_filtered, train_networks_filtered, val_graphs, valid_networks
 
 @ray.remote
@@ -147,7 +150,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
                         save_dataframes,case, uniqueid, experiment=experiment) for sample_id in range(nbsamples)]
 
         graph_y_networks = [g for g in graph_y_network if g[0] is not None]
-        graph_y, networks_y, convergence_times = list(zip(*graph_y_networks)) if len(graph_y_networks) else ([],[])
+        graph_y, networks_y, convergence_times = list(zip(*graph_y_networks)) if len(graph_y_networks) else ([],[], [])
 
         graphs = graphs+ list(graph_y)
         networks["mutants"] =  networks["mutants"] + list(networks_y)
