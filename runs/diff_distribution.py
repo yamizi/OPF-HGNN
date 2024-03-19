@@ -74,7 +74,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
         train_graphs = []
-        train_networks = {"original": [], "mutants": []}
+        train_networks = {"original": [], "mutants": [], "convergence_time":[]}
         nb_graphs = 0
         train_case_name = ""
         for training_case in training_cases:
@@ -87,6 +87,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
             train_graphs += train_graph
             train_networks["mutants"] += train_network["mutants"]
+            train_networks["convergence_time"] += train_network["convergence_time"]
             train_networks["original"] += [train_network["original"]]
             nb_graphs += nb_graph
 
@@ -96,6 +97,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
         print("Correct training graphs {}/{}".format(len(train_graphs), nb_graphs))
         experiment.log_metric("nb_train_graphs", len(train_graphs))
+        [experiment.log_metric("convergence_train_graphs", e) for e in train_networks["convergence_time"]]
 
         with(open(pickle_file, "ab") as f):
             pickle.dump({"train_graphs": train_graphs, "train_networks": train_networks, "val_graphs": val_graphs,

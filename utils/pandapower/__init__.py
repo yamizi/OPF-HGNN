@@ -16,9 +16,12 @@ import os
 from utils.pandapower.mutations import mutate_costs, mutate_loads
 import itertools
 import ray
-
+import time
 from utils.pandapower.pandapower_graph import PandaPowerGraph
+from runs.matpower import opf as matpower_opf
 import copy
+
+
 def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
     print("clearing duplicates")
     train_graphs_c = deepcopy(train_graphs)
@@ -45,39 +48,47 @@ def build_one_graph_ray(sample_id, original_network, mutations,mutation_rate,opf
 def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                     save_dataframes,case, uniqueid, experiment, device="cpu" ):
     network = deepcopy(original_network)
-
+    convergence_time = 0
     if mutation_rate>0:
         if "cost" in mutations:
             network, masked = mutate_costs(network, mutation_rate=mutation_rate)
         
         if "load" in mutations:
-            network, masked = mutate_loads(network, mutation_rate=mutation_rate)
+            network, loads = mutate_loads(network, mutation_rate=mutation_rate)
 
         if "load_relative" in mutations:
-            network, masked = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
+            network, loads = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
 
-    #fix minimum r_ohm and clean diagnostic warning
-    network.line.r_ohm_per_km = network.line.r_ohm_per_km.clip(0.011)
+    if opf==3:
+        octave_path = os.environ.get("OCTAVE_PATH",None)
+        network, convergence_time = matpower_opf(case=case,loads=loads,octave_path=octave_path)
+        if network is None:
+            return None,None,None
 
-    try:
-        run_errors = pp.diagnostic(copy.deepcopy(network), report_style="compact")
-        network.original_errors = run_errors
-        print(run_errors)
-        if opf==2:
-            pp.runpm_ac_opf(network)
-        elif opf==1:
-            pp.runopp(network)
-        else:
-            pp.runpp(network)
+    else:
+        #fix minimum r_ohm and clean diagnostic warning
+        network.line.r_ohm_per_km = network.line.r_ohm_per_km.clip(0.011)
 
-        if not network.OPF_converged:
-            print("not converged opf")
-            return None, None
-    except Exception as e:
-        print("error in opf",e)
-        return None, None
+        try:
+            run_errors = pp.diagnostic(copy.deepcopy(network), report_style="compact")
+            network.original_errors = run_errors
+            print(run_errors)
+            init = time.time()
+            if opf==2:
+                pp.runpm_ac_opf(network)
+            elif opf==1:
+                pp.runopp(network)
+            else:
+                pp.runpp(network)
+            convergence_time = time.time()-init
 
-    
+            if not network.OPF_converged:
+                print("not converged opf")
+                return None, None, None
+        except Exception as e:
+            print("error in opf",e)
+            return None, None, None
+
     if dataset_type=="y_no_OPF":
         graph_y = PandaPowerGraph(network,include_res=False,opf_as_y=True, preprocess='metapath2vec',
                         transform=T.Compose(transforms),scale=scale, hetero=hetero, device=device)
@@ -92,7 +103,7 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
         path = "{}/{}_{}/".format(save_dataframes,case,uniqueid)
         graph_y.export(path+"op_{}".format(sample_id), experiment=experiment)
 
-    return graph_y, network
+    return graph_y, network, convergence_time
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=1,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True,
@@ -101,7 +112,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
 
     case_method = getattr(pp.networks, case)
     original_network = case_method()
-    networks = {"original":original_network, "mutants":[]}
+    networks = {"original":original_network, "mutants":[], "convergence_time":[]}
     network = deepcopy(original_network)
     uniqueid = uuid.uuid4() if uniqueid is None else uniqueid
     path = "."
@@ -136,12 +147,14 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
                         save_dataframes,case, uniqueid, experiment=experiment) for sample_id in range(nbsamples)]
 
         graph_y_networks = [g for g in graph_y_network if g[0] is not None]
-        graph_y, networks_y = list(zip(*graph_y_networks)) if len(graph_y_networks) else ([],[])
+        graph_y, networks_y, convergence_times = list(zip(*graph_y_networks)) if len(graph_y_networks) else ([],[])
 
         graphs = graphs+ list(graph_y)
         networks["mutants"] =  networks["mutants"] + list(networks_y)
+        networks["convergence_time"] = networks["convergence_time"] + list(convergence_times)
    
     networks["mutants"] = networks["mutants"][:nbsamples]
+    networks["convergence_time"] = networks["convergence_time"][:nbsamples]
     graphs = graphs[:nbsamples]
     return graphs, networks, path, uniqueid
 
