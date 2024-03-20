@@ -185,11 +185,11 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 if __name__ == "__main__":
     max_epochs = 100
     case = "case1354pegase"
-    case = "case9"
+    #case = "case9"
     mutation = "load_relative"
     training_case = [[case, 32, 0.7, [mutation]]]
     validation_case = [case, 8, 0.7, [mutation]]
-    opf = 1
+    opf = 3
     cv_ratio = 0
 
     experiment = init_comet({"case": case, "mutation": mutation})
