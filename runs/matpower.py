@@ -44,7 +44,7 @@ def opf(case, loads, working_directory="./output",uniqueid="default", octave_pat
 
     pq_loads_updated = {a:pq_updated[i].tolist() for i, a in enumerate(pq_loads.keys())}
     all_buses = list({**all_buses, **pq_loads_updated}.values())
-    mpc.bus = all_buses
+    mpc.bus = np.array(all_buses)
     octave.push("mpc",mpc)
     octave.eval("[baseMVA, bus, gen, gencost, branch, f, success, et] = runopf(mpc);")
     #octave.eval("[success, results] = runopf(mpc);")
@@ -53,13 +53,22 @@ def opf(case, loads, working_directory="./output",uniqueid="default", octave_pat
         return None, None
         #octave.eval(f'save("-binary", "converged_{uniqueid}.mat", "results")')
 
+    network = pp.converter.from_ppc(mpc)
     mpc.bus = octave.pull("bus")
     mpc.gen = octave.pull("gen")
     mpc.branch = octave.pull("branch")
     convergence_time = octave.pull("et")
 
-    network = pp.converter.from_ppc(mpc)
     pp.runpp(network)
+    network.res_bus[["vm_pu","va_degree"]] = mpc.bus[:,7:9]
+    generators = mpc.gen[:,0:3]
+    ext_grid_bus = network.ext_grid.bus.values[0]
+    ext_grid_index = generators[:,0].tolist().index(ext_grid_bus)
+    network.res_ext_grid[["p_mw", "q_mvar"]] = generators[ext_grid_index, 1:3]
+    network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators,ext_grid_index, axis=0)[:,1:3]
+
+    # not sure of this
+    network.res_bus[["p_mw","q_mvar"]] = mpc.bus[:,13:15]*network.sn_mva
     converged = network.converged
     return network, convergence_time
 
@@ -70,7 +79,7 @@ if __name__ == "__main__":
     case_method = getattr(pp.networks, case)
     net = case_method()
 
-    mutation_rate = 1#0.7
+    mutation_rate = 0#0.7
     octave_path = "C:/PortableApps/GNUOctavePortable/App/Octave64/mingw64/bin/octave-cli.exe"
     network, masked_loads = mutate_loads(net, mutation_rate=mutation_rate, relative=True)
 
