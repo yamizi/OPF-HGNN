@@ -23,8 +23,6 @@ def opf(case, loads, working_directory="./output",uniqueid="default", octave_pat
     matpower_directory = f"{working_directory}/matpower"
     os.makedirs(matpower_directory,exist_ok=True)
     octave.addpath(matpower_directory)
-    file_name = f"{matpower_directory}/{uniqueid}.mat"
-    converged_name = f"{matpower_directory}/converged_{uniqueid}.mat"
 
     octave.eval(f"mpc = loadcase('{case}');")
     mpc = octave.pull("mpc")
@@ -60,16 +58,15 @@ def opf(case, loads, working_directory="./output",uniqueid="default", octave_pat
     convergence_time = octave.pull("et")
 
     pp.runpp(network)
+    #network.res_bus[["p_mw", "q_mvar"]] = mpc.bus[:, 2:4]
     network.res_bus[["vm_pu","va_degree"]] = mpc.bus[:,7:9]
-    generators = mpc.gen[:,0:3]
+    generators = mpc.gen[:,0:6]
     ext_grid_bus = network.ext_grid.bus.values[0]
     ext_grid_index = generators[:,0].tolist().index(ext_grid_bus)
     network.res_ext_grid[["p_mw", "q_mvar"]] = generators[ext_grid_index, 1:3]
     network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators,ext_grid_index, axis=0)[:,1:3]
+    #network.res_gen[['vm_pu']] = np.delete(generators,ext_grid_index, axis=0)[:,5]
 
-    # not sure of this
-    network.res_bus[["p_mw","q_mvar"]] = mpc.bus[:,13:15]*network.sn_mva
-    converged = network.converged
     return network, convergence_time
 
 
@@ -79,7 +76,7 @@ if __name__ == "__main__":
     case_method = getattr(pp.networks, case)
     net = case_method()
 
-    mutation_rate = 0#0.7
+    mutation_rate = 0.7
     octave_path = "C:/PortableApps/GNUOctavePortable/App/Octave64/mingw64/bin/octave-cli.exe"
     network, masked_loads = mutate_loads(net, mutation_rate=mutation_rate, relative=True)
 

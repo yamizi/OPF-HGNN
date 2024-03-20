@@ -181,10 +181,9 @@ class PandaPowerGraph(InMemoryDataset):
             if len(merged_df):
                 boundaries = np.nan * np.ones((len(merged_df), 8))
                 merged_df = normalizePQ(merged_df, columns=["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"],min_val=0,max_val=network.sn_mva)
-                if node == "ext_grid" or node in ["gen"]:
+                if node == "ext_grid" or node == "gen":
                     y = ["p_mw", "q_mvar"]
                     drop_y = y
-
                     #we enforce boundaries slightly tighter than original boundaries in the loss estimation
                     boundaries_conservative = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
                     boundaries_conservative = boundaries_conservative + np.repeat([[10*boundary_tolerance, 10*boundary_tolerance, -10*boundary_tolerance, -10*boundary_tolerance]],
@@ -194,12 +193,10 @@ class PandaPowerGraph(InMemoryDataset):
                     y = ["p_mw", "q_mvar"]
                     drop_y = y
                 elif node in ["bus"]:
-                    y = ["p_mw", "q_mvar","vm_pu", "va_degree"]
+                    y = ["vm_pu", "va_degree"]
                     boundaries_conservative = merged_df[["min_vm_pu", "max_vm_pu"]].values
                     boundaries_conservative = boundaries_conservative + np.repeat([[10 * boundary_tolerance,
-                                                                                    10 * boundary_tolerance,
-                                                                                    -10 * boundary_tolerance,
-                                                                                    -10 * boundary_tolerance]],
+                                                                                   -10 * boundary_tolerance]],
                                                                                   len(merged_df), 0)
                     boundaries[:,4:6] = boundaries_conservative
                     drop_y = y
@@ -219,11 +216,13 @@ class PandaPowerGraph(InMemoryDataset):
                     merged_df = merged_df.rename(columns={"p_mw_y": "p_mw", "vm_pu_y": "vm_pu", 'q_mvar_y':'q_mvar'})
                     if include_res:
                         merged_df.drop(columns=drop_y, inplace=True)
-                    pf = getattr(network, "res_" + node)[y]
-                    values = torch.Tensor(pf.values).to(self.device)
+                    pf = getattr(network, "res_" + node)
+                    values = torch.Tensor(pf[y].values).to(self.device)
                     # Normalize P & Q with nominal voltage
-                    values[:, 0] = values[:, 0] / network.sn_mva
-                    values[:, 1] = values[:, 1] / network.sn_mva
+                    if y[0] == "p_mw":
+                        values[:, 0] = values[:, 0] / network.sn_mva
+                    if y[1] == "q_mvar":
+                        values[:, 1] = values[:, 1] / network.sn_mva
                     data[node].y = values
 
                     if node in ["ext_grid", "gen"]:
