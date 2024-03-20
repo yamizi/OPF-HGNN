@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 import json
 from copy import deepcopy
+from utils.pandapower.normalization import normalizePQ
 
 INF_VAL = 10**5
 class PandaPowerGraph(InMemoryDataset):
@@ -155,7 +156,7 @@ class PandaPowerGraph(InMemoryDataset):
         dataframes = {"bus": x,"ext_grid":ext_grid_df,"gen":gen_df,"sgen":sgen_df}
         return graph, dataframes, {"bus": scaler}
 
-    def build_hetero_data(self, network, include_res=True, opf_as_y=True, scale=False):
+    def build_hetero_data(self, network, include_res=True, opf_as_y=True, scale=False, boundary_tolerance=1e-5):
 
         node_types = self.node_types
         costs = network.poly_cost
@@ -179,25 +180,33 @@ class PandaPowerGraph(InMemoryDataset):
 
             if len(merged_df):
                 boundaries = np.nan * np.ones((len(merged_df), 8))
-                if node == "ext_grid" :
+                merged_df = normalizePQ(merged_df, columns=["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"],min_val=0,max_val=network.sn_mva)
+                if node == "ext_grid" or node in ["gen"]:
                     y = ["p_mw", "q_mvar"]
                     drop_y = y
-                    boundaries[:,0:4] = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
+
+                    #we enforce boundaries slightly tighter than original boundaries in the loss estimation
+                    boundaries_conservative = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
+                    boundaries_conservative = boundaries_conservative + np.repeat([[10*boundary_tolerance, 10*boundary_tolerance, -10*boundary_tolerance, -10*boundary_tolerance]],
+                                len(merged_df), 0)
+                    boundaries[:, 0:4] = boundaries_conservative
                 elif node == "sgen":
                     y = ["p_mw", "q_mvar"]
                     drop_y = y
-                elif node in ["gen"]:
-                    y = ["p_mw", "q_mvar"]#, "vm_pu", "va_degree"]
-                    drop_y = y
-                    boundaries[:,0:4] = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
                 elif node in ["bus"]:
                     y = ["p_mw", "q_mvar","vm_pu", "va_degree"]
-                    boundaries[:,4:6] = merged_df[["min_vm_pu", "max_vm_pu"]].values
+                    boundaries_conservative = merged_df[["min_vm_pu", "max_vm_pu"]].values
+                    boundaries_conservative = boundaries_conservative + np.repeat([[10 * boundary_tolerance,
+                                                                                    10 * boundary_tolerance,
+                                                                                    -10 * boundary_tolerance,
+                                                                                    -10 * boundary_tolerance]],
+                                                                                  len(merged_df), 0)
+                    boundaries[:,4:6] = boundaries_conservative
                     drop_y = y
                 elif node in ["line"]:
                     y = ["pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
                     drop_y = y
-                    max_lines = merged_df[["max_i_ka"]].values
+                    max_lines = merged_df[["max_i_ka"]].values -10 * boundary_tolerance
                     boundaries[:,4:8] = np.concatenate([np.zeros_like(max_lines),max_lines, np.zeros_like(max_lines),max_lines],1)
 
                 #print(self.device)
@@ -230,6 +239,7 @@ class PandaPowerGraph(InMemoryDataset):
 
             scaler = None # StandardScaler()
             merged_df = merged_df.replace([np.inf, -np.inf], [-INF_VAL,INF_VAL])
+            merged_df = normalizePQ(merged_df,min_val=0,max_val=network.sn_mva)
             one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
             if scale and scaler is not None:
                 one_hot = scaler.fit_transform(one_hot)
