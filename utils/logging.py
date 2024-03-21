@@ -68,33 +68,68 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
         labels = {node: ground_truth[np.array(mask) == node, :] for node in y_nodes}
 
     delta = 1e-10  # to avoid division by zero
-
+    dic = {}
     for node, outputs in output_nodes.items():
         ground_truth = labels[node]
-        dic = {"P_pred_" + node: outputs[:, 0].cpu().numpy(), "P_true_" + node: ground_truth[:, 0].cpu().numpy(),
-               "Q_pred_" + node: outputs[:, 1].cpu().numpy(), "Q_true_" + node: ground_truth[:, 1].cpu().numpy()}
 
-        SE_P = (outputs[:, 0].cpu().numpy() - ground_truth[:, 0].cpu().numpy()) ** 2
-        relativeSE_P = SE_P / (ground_truth[:, 0].cpu().numpy() ** 2 + delta)
+        if node in ["gen","ext_grid"]:
+            dic = {"P_pred_" + node: outputs[:, 0].cpu().numpy(), "P_true_" + node: ground_truth[:, 0].cpu().numpy(),
+                   "Q_pred_" + node: outputs[:, 1].cpu().numpy(), "Q_true_" + node: ground_truth[:, 1].cpu().numpy()}
 
-        SE_Q = (outputs[:, 1].cpu().numpy() - ground_truth[:, 1].cpu().numpy()) ** 2
-        relativeSE_Q = SE_P / (ground_truth[:, 1].cpu().numpy() ** 2 + delta)
+            SE_P = (outputs[:, 0].cpu().numpy() - ground_truth[:, 0].cpu().numpy()) ** 2
+            relativeSE_P = SE_P / (ground_truth[:, 0].cpu().numpy() ** 2 + delta)
 
-        dic = {**dic, "SE_P_" + node: SE_P, "relativeSE_P_" + node: relativeSE_P, "SE_Q_" + node: SE_Q,
-               "relativeSE_Q_" + node: relativeSE_Q}
-        if node in ["bus", "gen", "sgen"] and ground_truth.shape[1]>3 and outputs.shape[1]>3:
-            dic = {"Vm_pred_" + node: outputs[:, 2].cpu().numpy(), "Vm_true_" + node: ground_truth[:, 2].cpu().numpy(),
-                   "Va_pred_" + node: outputs[:, 3].cpu().numpy(), "Va_true_" + node: ground_truth[:, 3].cpu().numpy(),
+            SE_Q = (outputs[:, 1].cpu().numpy() - ground_truth[:, 1].cpu().numpy()) ** 2
+            relativeSE_Q = SE_P / (ground_truth[:, 1].cpu().numpy() ** 2 + delta)
+
+            dic = {**dic, "SE_P_" + node: SE_P, "relativeSE_P_" + node: relativeSE_P, "SE_Q_" + node: SE_Q,
+                   "relativeSE_Q_" + node: relativeSE_Q}
+        if node in ["bus"]:
+            dic = {"Vm_pred_" + node: outputs[:, 2].cpu().numpy(), "Vm_true_" + node: ground_truth[:, 0].cpu().numpy(),
+                   "Va_pred_" + node: outputs[:, 3].cpu().numpy(), "Va_true_" + node: ground_truth[:, 1].cpu().numpy(),
                    **dic}
 
-            SE_Vm = (outputs[:, 2].cpu().numpy() - ground_truth[:, 2].cpu().numpy()) ** 2
-            relativeSE_Vm = SE_Vm / (ground_truth[:, 2].cpu().numpy() ** 2 + delta)
+            SE_Vm = (outputs[:, 2].cpu().numpy() - ground_truth[:, 0].cpu().numpy()) ** 2
+            relativeSE_Vm = SE_Vm / (ground_truth[:, 0].cpu().numpy() ** 2 + delta)
 
-            SE_Va = (outputs[:, 3].cpu().numpy() - ground_truth[:, 3].cpu().numpy()) ** 2
-            relativeSE_Va = SE_Va / (ground_truth[:, 3].cpu().numpy() ** 2 + delta)
+            SE_Va = (outputs[:, 3].cpu().numpy() - ground_truth[:, 1].cpu().numpy()) ** 2
+            relativeSE_Va = SE_Va / (ground_truth[:, 1].cpu().numpy() ** 2 + delta)
 
             dic = {**dic, "SE_Vm_" + node: SE_Vm, "relativeSE_Vm_" + node: relativeSE_Vm, "SE_Va_" + node: SE_Va,
                    "relativeSE_Va_" + node: relativeSE_Va}
+
+        if node in ["line"]:
+            dic = {"pl_mw_pred_" + node: outputs[:, 4].cpu().numpy(), "pl_mw_true_" + node: ground_truth[:, 0].cpu().numpy(),
+                   "Va_pred_" + node: outputs[:, 5].cpu().numpy(), "Va_true_" + node: ground_truth[:, 1].cpu().numpy(),
+                   **dic}
+
+            SE_pl_mw = (outputs[:, 4].cpu().numpy() - ground_truth[:, 0].cpu().numpy()) ** 2
+            relativeSE_pl_mw = SE_pl_mw / (ground_truth[:, 0].cpu().numpy() ** 2 + delta)
+
+            SE_ql_mvar = (outputs[:, 5].cpu().numpy() - ground_truth[:, 1].cpu().numpy()) ** 2
+            relativeSE_ql_mvar = SE_ql_mvar / (ground_truth[:, 1].cpu().numpy() ** 2 + delta)
+
+            dic = {**dic, "SE_pl_mw_" + node: SE_pl_mw, "relativeSE_pl_mw_" + node: relativeSE_pl_mw, "SE_ql_mvar_" + node: SE_ql_mvar,
+                   "relativeSE_ql_mvar_" + node: relativeSE_ql_mvar}
+
+
+            ## Current
+
+            dic = {"i_from_ka_pred_" + node: outputs[:, 6].cpu().numpy(),
+                   "i_from_ka_true_" + node: ground_truth[:, 2].cpu().numpy(),
+                   "Va_pred_" + node: outputs[:, 7].cpu().numpy(), "Va_true_" + node: ground_truth[:, 3].cpu().numpy(),
+                   **dic}
+
+            SE_i_from_ka = (outputs[:, 6].cpu().numpy() - ground_truth[:, 2].cpu().numpy()) ** 2
+            relativeSE_i_from_ka = SE_i_from_ka / (ground_truth[:, 2].cpu().numpy() ** 2 + delta)
+
+            SE_i_to_ka = (outputs[:, 7].cpu().numpy() - ground_truth[:, 3].cpu().numpy()) ** 2
+            relativeSE_i_to_ka = SE_i_to_ka / (ground_truth[:, 3].cpu().numpy() ** 2 + delta)
+
+            dic = {**dic, "SE_i_to_ka_" + node: SE_i_to_ka, "relativeSE_i_to_ka_" + node: relativeSE_i_to_ka,
+                   "SE_i_from_ka_" + node: SE_i_from_ka,
+                   "relativeSE_i_from_ka_" + node: relativeSE_i_from_ka}
+
 
         if experiment:
             log_dict_series(dic, experiment)
