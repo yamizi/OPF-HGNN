@@ -32,11 +32,11 @@ def plot_results(networks, val_graphs, outputs, y_nodes,constrained_networks,err
         #fig = plt.figure()
         plt.figure().clear()
 
-        plt.plot(outputs[:,0], label="Predicted P_mw")
-        plt.plot(ground_truth[:,0], label="True P_mw")
+        plt.plot(outputs[:,0].cpu(), label="Predicted P_mw")
+        plt.plot(ground_truth[:,0].cpu(), label="True P_mw")
 
-        plt.plot(outputs[:,1], label="Predicted Q_mvar")
-        plt.plot(ground_truth[:,1], label="True Q_mvar")
+        plt.plot(outputs[:,1].cpu(), label="Predicted Q_mvar")
+        plt.plot(ground_truth[:,1].cpu(), label="True Q_mvar")
 
 
         plt.xlabel("Graphs")
