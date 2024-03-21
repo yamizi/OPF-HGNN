@@ -51,15 +51,15 @@ class PandaPowerGraph(InMemoryDataset):
         return default_features.get(node,1)
     @property
     def num_outputs(self) -> int:
-        return 4  # np.sum([len(self._data[e].y.flatten()) for e in self.output_nodes if hasattr(self._data[e],"y")])
+        return 8 # ["p_mw", "q_mvar", "vm_pu", "va_degree", "pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
 
     @property
     def output_nodes(self) -> [str]:
-        return [e for e in ["ext_grid", "gen", "sgen"] if hasattr(self._data[e], "y")]
+        return [e for e in ["ext_grid", "gen", "bus","line"] if hasattr(self._data[e], "y")]
 
     @property
     def total_output_nodes(self) -> [str]:
-        return np.sum([len(self.dataframes.get(e)) for e in ["ext_grid", "gen", "sgen"]])*self.num_outputs
+        return np.sum([len(self.dataframes.get(e)) for e in ["ext_grid", "gen", "bus", "line"]])*self.num_outputs
 
     def export(self, filename="export", format="json", experiment=None):
 
@@ -179,10 +179,12 @@ class PandaPowerGraph(InMemoryDataset):
                 right_index=True)
 
             if len(merged_df):
-                boundaries = np.nan * np.ones((len(merged_df), 8))
+                boundaries = np.nan * np.ones((len(merged_df), self.num_outputs*2))
+                mask = np.zeros((len(merged_df),self.num_outputs))
                 merged_df = normalizePQ(merged_df, columns=["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"],min_val=0,max_val=network.sn_mva)
                 if node == "ext_grid" or node == "gen":
                     y = ["p_mw", "q_mvar"]
+                    mask[:,0:2] = 1
                     drop_y = y
                     #we enforce boundaries slightly tighter than original boundaries in the loss estimation
                     boundaries_conservative = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
@@ -199,17 +201,18 @@ class PandaPowerGraph(InMemoryDataset):
                                                                                    -10 * boundary_tolerance]],
                                                                                   len(merged_df), 0)
                     boundaries[:,4:6] = boundaries_conservative
+                    mask[:,2:4] = 1
                     drop_y = y
                 elif node in ["line"]:
                     y = ["pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
+                    mask[:,4:8] = 1
                     drop_y = y
                     max_lines = merged_df[["max_i_ka"]].values -10 * boundary_tolerance
-                    boundaries[:,4:8] = np.concatenate([np.zeros_like(max_lines),max_lines, np.zeros_like(max_lines),max_lines],1)
+                    boundaries[:,12:16] = np.concatenate([np.zeros_like(max_lines),max_lines, np.zeros_like(max_lines),max_lines],1)
 
-                #print(self.device)
-                #print(torch.cuda.is_available())
-                #print(torch.cuda.device_count())
+
                 data[node].boundaries = torch.Tensor(boundaries).to(self.device)
+                data[node].output_mask = torch.Tensor(mask).to(self.device)
             if opf_as_y:
 
                 if node in ["ext_grid", "gen", "bus","line"] and len(getattr(network, "res_" + node)) > 0:
