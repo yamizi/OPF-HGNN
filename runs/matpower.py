@@ -67,6 +67,7 @@ def opf(case, loads, working_directory="./output",uniqueid="default", octave_pat
     network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators,ext_grid_index, axis=0)[:,1:3]
     #network.res_gen[['vm_pu']] = np.delete(generators,ext_grid_index, axis=0)[:,5]
 
+    octave.exit()
     return network, convergence_time
 
 

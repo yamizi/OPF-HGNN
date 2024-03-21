@@ -8,7 +8,7 @@ import pandapower as pp
 import numpy as np
 
 from copy import deepcopy
-
+import psutil, gc
 import torch_geometric.transforms as T
 import json
 import uuid
@@ -48,9 +48,9 @@ def build_one_graph_ray(sample_id, original_network, mutations,mutation_rate,opf
                     save_dataframes,case, uniqueid, experiment, device="cpu" ):
     return build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                     save_dataframes,case, uniqueid, experiment, device )
-def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+def build_one_graph(sample_id, network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                     save_dataframes,case, uniqueid, experiment, device="cpu" ):
-    network = deepcopy(original_network)
+    gc.collect()
     convergence_time = 0
     if mutation_rate>0:
         if "cost" in mutations:
@@ -64,10 +64,13 @@ def build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,tra
 
     if opf==3:
         octave_path = os.environ.get("OCTAVE_PATH",None)
-        network, convergence_time = matpower_opf(case=case,loads=loads,octave_path=octave_path)
-        if network is None:
-            return None,None,None
-
+        try:
+            network, convergence_time = matpower_opf(case=case,loads=loads,octave_path=octave_path)
+            if network is None:
+                return None,None,None
+        except Exception as e:
+            print("opf 3 error", e)
+            return None, None, None
     else:
         #fix minimum r_ohm and clean diagnostic warning
         network.line.r_ohm_per_km = network.line.r_ohm_per_km.clip(0.011)
