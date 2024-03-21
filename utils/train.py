@@ -17,16 +17,22 @@ def relative_loss(yhat, y):
     return criterion(yhat, y) / yhat.abs()
 
 
-def node_loss(yhat, y):
+def node_loss(yhat, y, mask=None):
     criterion = torch.nn.MSELoss(reduction="none")
-    return criterion(yhat, y[:, :yhat.shape[1]])
+    if mask is None:
+        return criterion(yhat, y[:, :yhat.shape[1]])
+    else:
+        return criterion(yhat.flatten(), y.flatten()[mask.bool().flatten()])
 
 
 def boundary_loss(boundaries, y, node=""):
-    # minp = boundaries[:,0]
-    # maxp = boundaries[:,1]
-    # minq = boundaries[:,2]
-    # maxq = boundaries[:,3]
+    # minp = boundaries[:,0] # maxp = boundaries[:,1]
+    # minq = boundaries[:,2] # maxq = boundaries[:,3]
+    # minVm = boundaries[:,4] # maxVm = boundaries[:,5]
+    # minVa = boundaries[:,6] # maxVa = boundaries[:,7]
+    # mini_from_ka = boundaries[:,12] # maxi_from_ka = boundaries[:,13]
+    # mini_to_ka = boundaries[:,14] # maxi_to_ka = boundaries[:,15]
+
 
     boundary_losses = [torch.max(torch.zeros_like(boundaries[:, 2 * i]), boundaries[:, 2 * i] - y[:, i]) + torch.max(
         torch.zeros_like(boundaries[:, 2 * i + 1]), y[:, i] - boundaries[:, 2 * i + 1]) for i in range(y.shape[1] - 1)
@@ -276,11 +282,12 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
                 label = label[mask_node[i]]
                 output = output[mask_node[i]]
 
-            loss_label = loss_f(label, output)
+            output_mask = data[node].output_mask
+            loss_label = loss_f(label, output, output_mask)
             losses.append(loss_label.cpu().detach().numpy())
             if use_boundary_loss:
                 loss_boundary = boundary_loss(data[node].boundaries, output, node)
-                loss_node = torch.cat([loss_label, loss_boundary.unsqueeze(1)], 1)
+                loss_node = torch.cat([loss_label.reshape((loss_boundary.shape[0],-1)), loss_boundary.unsqueeze(1)], 1)
                 boundary_losses.append(loss_boundary.cpu().detach().numpy())
             else:
                 loss_node = loss_label
@@ -348,7 +355,8 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
                 label = label[mask_node[i]]
                 output = output[mask_node[i]]
 
-            loss_node = loss_f(label, output)
+            output_mask = data[node].output_mask
+            loss_node = loss_f(label, output, output_mask)
             loss_boundary = boundary_loss(data[node].boundaries, output)
             losses.append(loss_node.cpu().detach().numpy())
             boundary_losses.append(loss_boundary.cpu().detach().numpy())
