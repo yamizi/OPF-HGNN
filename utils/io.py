@@ -37,4 +37,6 @@ def get_parser():
     parser.add_argument('-e', '--epochs', help="Max epochs", type=int, default=500)
     parser.add_argument('-hp', '--num_samples', help="Num samples in hyper-param optimization", type=int, default=250)
 
+    parser.add_argument('-cv', '--cv_ratio', help="cross validation ratio", type=float, default=0.2)
+
     return parser

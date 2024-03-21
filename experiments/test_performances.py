@@ -10,7 +10,7 @@ parser = get_parser()
 
 
 def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30", "case118"],
-        nb_train=8000, nb_val=2000, dataset_type="y_OPF", device="cuda", scale=0,
+        nb_train=8000, nb_val=2000, dataset_type="y_OPF", device="cuda", scale=0,cv_ratio=0.2,
         opf=1, project_name="test_perf_v4", use_ray=1, epochs=500, num_samples=200):
     for mutation in mutations:
         for case in cases:
@@ -25,7 +25,7 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
             run_case(training_cases=training_case, validation_case=validation_case, plot=False,
                      title="Test performance on " + mutation, save_path=path, dataset_type=dataset_type,
                      experiment=experiment, train_batch_size=256, val_batch_size=512, scale=scale,
-                     device=device, opf=opf, use_ray=use_ray, uniqueid=hash_path, max_epochs=epochs, cv_ratio=20,
+                     device=device, opf=opf, use_ray=use_ray, uniqueid=hash_path, max_epochs=epochs, cv_ratio=cv_ratio,
                      num_samples=num_samples)
 
 
@@ -36,4 +36,4 @@ if __name__ == "__main__":
     comet_name = args.comet_name if args.comet_name != "" else "test_perf_a1"
     run(mutations, cases, args.nb_train, args.nb_val, device=args.device, scale=args.scale, epochs=args.epochs,
         dataset_type=args.dataset_type, opf=args.opf, project_name=comet_name, use_ray=args.ray,
-        num_samples=args.num_samples)
+        num_samples=args.num_samples, cv_ratio=args.cv_ratio)
