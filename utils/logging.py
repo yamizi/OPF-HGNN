@@ -112,9 +112,6 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
             dic = {**dic, "SE_pl_mw_" + node: SE_pl_mw, "relativeSE_pl_mw_" + node: relativeSE_pl_mw, "SE_ql_mvar_" + node: SE_ql_mvar,
                    "relativeSE_ql_mvar_" + node: relativeSE_ql_mvar}
 
-
-            ## Current
-
             dic = {"i_from_ka_pred_" + node: outputs[:, 6].cpu().numpy(),
                    "i_from_ka_true_" + node: ground_truth[:, 2].cpu().numpy(),
                    "Va_pred_" + node: outputs[:, 7].cpu().numpy(), "Va_true_" + node: ground_truth[:, 3].cpu().numpy(),
@@ -130,8 +127,7 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
                    "SE_i_from_ka_" + node: SE_i_from_ka,
                    "relativeSE_i_from_ka_" + node: relativeSE_i_from_ka}
 
-
-        if experiment:
-            log_dict_series(dic, experiment)
-        else:
-            return dic
+    if experiment:
+        log_dict_series(dic, experiment)
+    else:
+        return dic
