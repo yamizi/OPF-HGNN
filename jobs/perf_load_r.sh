@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0
-DEVICE="cpu"
+DEVICE="cuda"
 SCALE=0
 PROJECT="test_perf_opf3"
 DATASET="y_OPF"

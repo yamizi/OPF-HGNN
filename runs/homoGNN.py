@@ -90,12 +90,20 @@ def run_case(training_cases=[["case9",64,0.7,["cost", "load"]]],experiment=None,
                 "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
                 "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid}
 
+    dict_error = log_opf(valid_networks, val_graphs, last_out, y_nodes, None, hetero=False)
+
     with open(save_path+"/losses.json", "w") as outfile:
         json.dump(log_dict, outfile)
+
+    with open(save_path+"/errors.json", "w") as outfile:
+        json.dump(dict_error, outfile)
     
     if experiment is not None:
         log_dict_series(log_dict, experiment)
-        log_opf(valid_networks,val_graphs, last_out, y_nodes,experiment, hetero=False)
+        log_dict_series(dict_error, experiment, 10000)
+
+        with open(save_path + "/losses.json", "w") as outfile:
+            json.dump(log_dict, outfile)
     
     if plot:
         plot_losses(train_losses,val_losses,val_losses_gen, val_losses_ext_grid, case_name, title, save_path)

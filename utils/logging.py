@@ -129,5 +129,5 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
 
     if experiment:
         log_dict_series(dic, experiment)
-    else:
-        return dic
+
+    return dic
