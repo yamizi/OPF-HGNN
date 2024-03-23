@@ -73,7 +73,8 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
         ground_truth = labels[node]
 
         if node in ["gen","ext_grid"]:
-            dic = {"P_pred_" + node: outputs[:, 0].cpu().numpy(), "P_true_" + node: ground_truth[:, 0].cpu().numpy(),
+            dic = {**dic,
+                   "P_pred_" + node: outputs[:, 0].cpu().numpy(), "P_true_" + node: ground_truth[:, 0].cpu().numpy(),
                    "Q_pred_" + node: outputs[:, 1].cpu().numpy(), "Q_true_" + node: ground_truth[:, 1].cpu().numpy()}
 
             SE_P = (outputs[:, 0].cpu().numpy() - ground_truth[:, 0].cpu().numpy()) ** 2
