@@ -45,6 +45,9 @@ class PandaPowerGraph(InMemoryDataset):
             self.scalers = scalers
             self.dataframes = dataframes
 
+    def to(self,device):
+        self.data = self.data.to(device)
+        return self
     def num_features(self, node):
         default_features = {"bus":12,"load":10,"shunt":10,"ext_grid":15,"gen":18,"sgen":7,"line":27,
                             "trafo":29,"trafo3w":35,"impedance":8,"xward":10}

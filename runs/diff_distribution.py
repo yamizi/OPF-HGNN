@@ -100,8 +100,9 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         [experiment.log_metric("convergence_train_graphs", e) for e in train_networks["convergence_time"]]
 
         with(open(pickle_file, "ab") as f):
-            pickle.dump({"train_graphs": train_graphs, "train_networks": train_networks, "val_graphs": val_graphs,
+            pickle.dump({"train_graphs": [e.to("cpu") for e in train_graphs], "train_networks": train_networks, "val_graphs": val_graphs,
                          "valid_networks": valid_networks}, f)
+
 
     train_list = [g[0].to(device) for g in train_graphs]
 
@@ -191,7 +192,7 @@ if __name__ == "__main__":
     training_case = [[case, 4, 0.7, [mutation]]]
     validation_case = [case, 1, 0.7, [mutation]]
     opf = 3
-    cv_ratio = 0
+    cv_ratio = 1
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"

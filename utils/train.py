@@ -59,8 +59,7 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
     model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
                 out_channels=graph.num_outputs, aggr=config.get("aggr"), cls=config.get("cls"))
 
-
-    model = to_hetero(model, graph[0].metadata(), aggr='sum')
+    model = to_hetero(model, graph[0].to(device).metadata(), aggr='sum')
 
     print("objective device", device)
     model = model.to(device)
@@ -104,6 +103,7 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
 
         train_graphs = loaded.get("train_graphs")
     train_list = [train_graphs[i][0].to(device) for i in range(num_graphs)]
+
     del train_graphs
 
     cv_list = train_list[:min(len(train_list), 1000)]
