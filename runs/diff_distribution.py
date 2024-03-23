@@ -28,8 +28,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
-             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64],
-             base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100):
+             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64,64],
+             base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100, build_db_only=False):
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -103,6 +103,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
             pickle.dump({"train_graphs": [e.to("cpu") for e in train_graphs], "train_networks": train_networks, "val_graphs": val_graphs,
                          "valid_networks": valid_networks}, f)
 
+    if build_db_only:
+        return
 
     train_list = [g[0].to(device) for g in train_graphs]
 
@@ -192,7 +194,7 @@ if __name__ == "__main__":
     training_case = [[case, 4, 0.7, [mutation]]]
     validation_case = [case, 1, 0.7, [mutation]]
     opf = 3
-    cv_ratio = 1
+    cv_ratio = 0
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"

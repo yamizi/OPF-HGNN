@@ -1,3 +1,4 @@
+ulimit -n 8192
 export CUDA_VISIBLE_DEVICES=0
 DEVICE="cuda"
 SCALE=0
@@ -5,7 +6,9 @@ PROJECT="test_perf_opf3"
 DATASET="y_OPF"
 RAY=0
 HP=10
-CV=0
+CV=0.2
+NB_TRAIN=80
+NB_VAL=20
 #pip install -r "./requirements-gpu.txt"
 #pip install matplotlib ray[tune] comet-ml pandapower
 #pip install torch_geometric
@@ -13,11 +16,11 @@ CV=0
 
 
 OPF=3
-python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case9" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
-python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case14" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
-python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case30" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
-python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case118" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
-python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case1354pegase" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
+python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case9" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL
+#python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case14" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
+#python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case30" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
+#python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case118" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
+#python experiments/test_performances.py --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --cases "case1354pegase" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF
 
 OPF=2
 #python experiments/test_performances.py --ray $RAY --num_samples $HP --mutations "load_relative" --cases "case9" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF

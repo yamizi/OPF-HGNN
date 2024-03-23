@@ -59,9 +59,9 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
     model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
                 out_channels=graph.num_outputs, aggr=config.get("aggr"), cls=config.get("cls"))
 
-    model = to_hetero(model, graph[0].to(device).metadata(), aggr='sum')
 
-    print("objective device", device)
+    metadata =  graph[0].cpu().metadata()
+    model = to_hetero(model, metadata, aggr='sum')
     model = model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.get("lr"))
