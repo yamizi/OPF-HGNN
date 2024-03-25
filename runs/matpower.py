@@ -55,6 +55,8 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
             network, convergence_time = None, None
             #octave.eval(f'save("-binary", "converged_{uniqueid}.mat", "results")')
 
+        bus_names = mpc.bus_name
+        mpc.bus_name = [e.item() for e in bus_names]
         network = pp.converter.from_ppc(mpc)
         mpc.bus = octave.pull("bus")
         mpc.gen = octave.pull("gen")
