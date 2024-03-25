@@ -40,4 +40,4 @@ if __name__ == "__main__":
     run(mutations, cases, args.nb_train, args.nb_val, device=args.device, scale=args.scale, epochs=args.epochs,
         dataset_type=args.dataset_type, opf=args.opf, project_name=comet_name, use_ray=args.ray,
         num_samples=args.num_samples, cv_ratio=args.cv_ratio, aggr=args.aggr,cls=args.cls, decay_lr=args.decay_lr,
-        base_lr=args.base_lr, hidden_channels=args.hidden_channels)
+        base_lr=args.base_lr, hidden_channels=hidden_channels)

@@ -14,6 +14,8 @@ class GNN(torch.nn.Module):
         if isinstance(hidden_channels, int):
             hidden_channels = [hidden_channels]
 
+        else:
+            hidden_channels = [int(e) for e in hidden_channels]
         if initial_channels is None:
             initial_channels = hidden_channels[0]*2
 
