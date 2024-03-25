@@ -43,6 +43,34 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
                                "convergence_time":train_convergence_filtered}
     return train_graphs_filtered, train_networks_filtered, val_graphs, valid_networks
 
+
+def build_batch_graph(sample_id, network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                    save_dataframes,case, uniqueid, experiment, batch_size=25, device="cpu"):
+    assert opf==3 and "load_relative" in mutations  and "OPF" in dataset_type, "Batch graph generation is only available with matpower and load relative"
+
+    graphs = []
+    loads = [mutate_loads(copy.deepcopy(network), mutation_rate=mutation_rate, relative=True)[1] for i in range(batch_size)]
+    octave_path = os.environ.get("OCTAVE_PATH", None)
+    if True:
+        networks, convergence_times = matpower_opf(case=case, all_loads=loads, octave_path=octave_path, batch_size=batch_size)
+        for i, network in enumerate(networks):
+            if network is None:
+                continue
+
+            graph_y = PandaPowerGraph(network, include_res=True, opf_as_y=True, preprocess='metapath2vec',
+                                      transform=T.Compose(transforms), scale=scale, hetero=hetero, device=device)
+
+            graphs.append((graph_y, network, convergence_times[i]))
+
+    # try:
+    #     pass
+    # except Exception as e:
+    #     print("opf 3 error", e)
+    #     return graphs
+
+
+    return graphs
+
 @ray.remote
 def build_one_graph_ray(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                     save_dataframes,case, uniqueid, experiment, device="cpu" ):
@@ -54,18 +82,20 @@ def build_one_graph(sample_id, network, mutations,mutation_rate,opf,transforms, 
     convergence_time = 0
     if mutation_rate>0:
         if "cost" in mutations:
-            network, masked = mutate_costs(network, mutation_rate=mutation_rate)
+            network, masked = mutate_costs(copy.deepcopy(network), mutation_rate=mutation_rate)
         
         if "load" in mutations:
-            network, loads = mutate_loads(network, mutation_rate=mutation_rate)
+            network, loads = mutate_loads(copy.deepcopy(network), mutation_rate=mutation_rate)
 
         if "load_relative" in mutations:
-            network, loads = mutate_loads(network, mutation_rate=mutation_rate, relative=True)
+            network, loads = mutate_loads(copy.deepcopy(network), mutation_rate=mutation_rate, relative=True)
 
     if opf==3:
         octave_path = os.environ.get("OCTAVE_PATH",None)
         try:
             network, convergence_time = matpower_opf(case=case,loads=loads,octave_path=octave_path)
+            network = network[0]
+            convergence_time = convergence_time[0]
             if network is None:
                 return None,None,None
         except Exception as e:
@@ -113,7 +143,7 @@ def build_one_graph(sample_id, network, mutations,mutation_rate,opf,transforms, 
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=1,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True,
-                  hetero=True, device="cpu",use_ray=True):
+                  hetero=True, device="cpu",use_ray=True, batch_size=25):
     print(f"building dataset with {nbsamples} variants, ray {use_ray} and device {device}")
 
     case_method = getattr(pp.networks, case)
@@ -149,8 +179,16 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
 
             graph_y_network = ray.get(graph_y_network)
         else:
-            graph_y_network = [build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
-                        save_dataframes,case, uniqueid, experiment=experiment) for sample_id in range(nbsamples)]
+
+            if opf==3 and batch_size>1:
+                graph_y_network = []
+                for i in range(len(graphs),nbsamples,batch_size):
+                    step_network = build_batch_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                        save_dataframes,case, uniqueid, experiment=experiment, batch_size=batch_size)
+                    graph_y_network = graph_y_network + step_network
+            else:
+                graph_y_network = [build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
+                            save_dataframes,case, uniqueid, experiment=experiment) for sample_id in range(nbsamples)]
 
         graph_y_networks = [g for g in graph_y_network if g[0] is not None]
         graph_y, networks_y, convergence_times = list(zip(*graph_y_networks)) if len(graph_y_networks) else ([],[], [])

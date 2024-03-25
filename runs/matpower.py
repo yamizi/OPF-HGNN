@@ -6,7 +6,7 @@ from utils.pandapower.mutations import mutate_loads
 import os
 import numpy as np
 
-def opf(case, loads, working_directory="./output",uniqueid="default", octave_path=None):
+def opf(case, all_loads, working_directory="./output",uniqueid="default", octave_path=None, batch_size=1):
 
     # Loads are relative changes
 
@@ -36,39 +36,46 @@ def opf(case, loads, working_directory="./output",uniqueid="default", octave_pat
     pq_loads = {a:v for a,v in enumerate(buses.tolist()) if (v[1]==1 and v[2]!=0and v[3]!=0)}
 
     pq = np.array(list((pq_loads.values())))
-    multiplier = np.ones_like(pq)
-    multiplier[:len(loads), 2:4] = loads[:, 1:] + 1
-    pq_updated = pq * multiplier
+    convergence_times = []
+    networks =[]
+    for i in range(batch_size):
+        loads = all_loads[i]
+        multiplier = np.ones_like(pq)
+        multiplier[:len(loads), 2:4] = loads[:, 1:] + 1
+        pq_updated = pq * multiplier
 
-    pq_loads_updated = {a:pq_updated[i].tolist() for i, a in enumerate(pq_loads.keys())}
-    all_buses = list({**all_buses, **pq_loads_updated}.values())
-    mpc.bus = np.array(all_buses)
-    octave.push("mpc",mpc)
-    octave.eval("[baseMVA, bus, gen, gencost, branch, f, success, et] = runopf(mpc);")
-    #octave.eval("[success, results] = runopf(mpc);")
-    success = octave.pull("success")
-    if not success:
-        return None, None
-        #octave.eval(f'save("-binary", "converged_{uniqueid}.mat", "results")')
+        pq_loads_updated = {a:pq_updated[i].tolist() for i, a in enumerate(pq_loads.keys())}
+        mpc.bus = np.array(list({**all_buses, **pq_loads_updated}.values()))
+        octave.push("mpc",mpc)
+        octave.eval("evalc('[baseMVA, bus, gen, gencost, branch, f, success, et] = runopf(mpc);');")
+        #octave.eval("[success, results] = runopf(mpc);")
+        success = octave.pull("success")
+        if not success:
+            network, convergence_time = None, None
+            #octave.eval(f'save("-binary", "converged_{uniqueid}.mat", "results")')
 
-    network = pp.converter.from_ppc(mpc)
-    mpc.bus = octave.pull("bus")
-    mpc.gen = octave.pull("gen")
-    mpc.branch = octave.pull("branch")
-    convergence_time = octave.pull("et")
+        network = pp.converter.from_ppc(mpc)
+        mpc.bus = octave.pull("bus")
+        mpc.gen = octave.pull("gen")
+        mpc.branch = octave.pull("branch")
+        convergence_time = octave.pull("et")
 
-    pp.runpp(network)
-    #network.res_bus[["p_mw", "q_mvar"]] = mpc.bus[:, 2:4]
-    network.res_bus[["vm_pu","va_degree"]] = mpc.bus[:,7:9]
-    generators = mpc.gen[:,0:6]
-    ext_grid_bus = network.ext_grid.bus.values[0]
-    ext_grid_index = generators[:,0].tolist().index(ext_grid_bus)
-    network.res_ext_grid[["p_mw", "q_mvar"]] = generators[ext_grid_index, 1:3]
-    network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators,ext_grid_index, axis=0)[:,1:3]
-    #network.res_gen[['vm_pu']] = np.delete(generators,ext_grid_index, axis=0)[:,5]
+        pp.runpp(network)
+        #network.res_bus[["p_mw", "q_mvar"]] = mpc.bus[:, 2:4]
+        network.res_bus[["vm_pu","va_degree"]] = mpc.bus[:,7:9]
+        generators = mpc.gen[:,0:6]
+        ext_grid_bus = network.ext_grid.bus.values[0]
+        ext_grid_index = generators[:,0].tolist().index(ext_grid_bus)
+        network.res_ext_grid[["p_mw", "q_mvar"]] = generators[ext_grid_index, 1:3]
+        network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators,ext_grid_index, axis=0)[:,1:3]
+        #network.res_gen[['vm_pu']] = np.delete(generators,ext_grid_index, axis=0)[:,5]
+
+        networks.append(network)
+        convergence_times.append(convergence_time)
 
     octave.exit()
-    return network, convergence_time
+
+    return networks, convergence_times
 
 
 if __name__ == "__main__":
