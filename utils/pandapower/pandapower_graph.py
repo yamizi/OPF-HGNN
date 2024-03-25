@@ -29,7 +29,6 @@ class PandaPowerGraph(InMemoryDataset):
         super().__init__(None, transform, pre_transform)
 
         self.device = device
-        print("Pandapower device",self.device)
         self.node_types = ["bus", "load", "shunt", "ext_grid", "gen", "sgen", "line", "trafo", "trafo3w", "impedance",
                            "xward"]
         if hetero:

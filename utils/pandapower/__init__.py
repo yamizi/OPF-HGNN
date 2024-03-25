@@ -183,6 +183,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
             if opf==3 and batch_size>1:
                 graph_y_network = []
                 for i in range(len(graphs),nbsamples,batch_size):
+                    print("batch generation ",i,"/",nbsamples)
                     step_network = build_batch_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                         save_dataframes,case, uniqueid, experiment=experiment, batch_size=batch_size)
                     graph_y_network = graph_y_network + step_network
