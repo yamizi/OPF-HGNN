@@ -39,4 +39,10 @@ def get_parser():
 
     parser.add_argument('-cv', '--cv_ratio', help="cross validation ratio", type=float, default=0.2)
 
+    parser.add_argument('-lr', '--base_lr', help="Initial learning rate", type=float, default=0.1)
+    parser.add_argument('-dlr', '--decay_lr', help="Learnng rate decay", type=float, default=0.52)
+    parser.add_argument('-cl', '--cls', help="Graph layer classes", type=str, default="sage")
+    parser.add_argument('-ag', '--aggr', help="Message passing aggregation", type=str, default="mean")
+    parser.add_argument('-hc', '--hidden_channels', help="Hidden layers features seprated by :", type=str, default="64:64")
+
     return parser

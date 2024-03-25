@@ -11,7 +11,8 @@ parser = get_parser()
 
 def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30", "case118"],
         nb_train=8000, nb_val=2000, dataset_type="y_OPF", device="cuda", scale=0,cv_ratio=0.2,
-        opf=1, project_name="test_perf_v4", use_ray=1, epochs=500, num_samples=200):
+        opf=1, project_name="test_perf_v4", use_ray=1, epochs=500, num_samples=200, aggr="mean",cls="sage",
+        base_lr=0.1, decay_lr=0.5, hidden_channels=[64,64]):
     for mutation in mutations:
         for case in cases:
             experiment = init_comet({"case": case, "mutation": mutation}, project_name)
@@ -26,14 +27,17 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
                      title="Test performance on " + mutation, save_path=path, dataset_type=dataset_type,
                      experiment=experiment, train_batch_size=256, val_batch_size=512, scale=scale,
                      device=device, opf=opf, use_ray=use_ray, uniqueid=hash_path, max_epochs=epochs, cv_ratio=cv_ratio,
-                     num_samples=num_samples)
+                     num_samples=num_samples, aggr=aggr, cls=cls, base_lr=base_lr, decay_lr=decay_lr,
+                     hidden_channels=hidden_channels)
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
     mutations = args.mutations.split("+")
     cases = args.cases.split("+")
+    hidden_channels = args.hidden_channels.split(":")
     comet_name = args.comet_name if args.comet_name != "" else "test_perf_a1"
     run(mutations, cases, args.nb_train, args.nb_val, device=args.device, scale=args.scale, epochs=args.epochs,
         dataset_type=args.dataset_type, opf=args.opf, project_name=comet_name, use_ray=args.ray,
-        num_samples=args.num_samples, cv_ratio=args.cv_ratio)
+        num_samples=args.num_samples, cv_ratio=args.cv_ratio, aggr=args.aggr,cls=args.cls, decay_lr=args.decay_lr,
+        base_lr=args.base_lr, hidden_channels=args.hidden_channels)

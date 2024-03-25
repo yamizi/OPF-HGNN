@@ -133,6 +133,9 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         cls = best_config["cls"]
         aggr = best_config["aggr"]
 
+
+    experiment.log_parameters({"cls":cls,"hidden_channels":hidden_channels,"aggr":aggr})
+
     model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr, cls=cls)
     model = to_hetero(model, data.metadata(), aggr='sum').to(device)
     train_loader = DataLoader(train_list, batch_size=val_batch_size)
