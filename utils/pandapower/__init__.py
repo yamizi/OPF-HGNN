@@ -186,6 +186,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
                     step_network = build_batch_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                         save_dataframes,case, uniqueid, experiment=experiment, batch_size=batch_size)
                     graph_y_network = graph_y_network + step_network
+                    gc.collect()
             else:
                 graph_y_network = [build_one_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                             save_dataframes,case, uniqueid, experiment=experiment) for sample_id in range(nbsamples)]
