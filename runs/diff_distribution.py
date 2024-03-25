@@ -192,7 +192,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 if __name__ == "__main__":
     max_epochs = 100
     case = "case1354pegase"
-    case = "case30"
+    case = "case118"
     mutation = "load_relative"
     training_case = [[case, 40, 0.7, [mutation]]]
     validation_case = [case, 10, 0.7, [mutation]]

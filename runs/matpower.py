@@ -41,7 +41,8 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
     for i in range(batch_size):
         loads = all_loads[i]
         multiplier = np.ones_like(pq)
-        multiplier[:len(loads), 2:4] = loads[:, 1:] + 1
+        nb_loads = min(len(loads),len(multiplier))
+        multiplier[:nb_loads, 2:4] = loads[:nb_loads, 1:] + 1
         pq_updated = pq * multiplier
 
         pq_loads_updated = {a:pq_updated[i].tolist() for i, a in enumerate(pq_loads.keys())}
