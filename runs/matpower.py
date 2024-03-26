@@ -1,3 +1,4 @@
+import copy
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -13,6 +14,8 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
     if octave_path is not None:
         os.environ["OCTAVE_EXECUTABLE"] = octave_path
 
+    verbose = int(os.environ.get("VERBOSE_MATPOWER",0))
+
     from oct2py import Oct2Py, Oct2PyError
     try:
         octave = Oct2Py()
@@ -25,8 +28,8 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
     octave.addpath(matpower_directory)
 
     octave.eval(f"mpc = loadcase('{case}');")
-    mpc = octave.pull("mpc")
-    buses = mpc.bus
+    mpc_original = octave.pull("mpc")
+    buses = mpc_original.bus
 
     """
     PQ bus (Loads)        = 1
@@ -39,6 +42,7 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
     convergence_times = []
     networks =[]
     for i in range(batch_size):
+        mpc = copy.deepcopy(mpc_original)
         loads = all_loads[i]
         multiplier = np.ones_like(pq)
         nb_loads = min(len(loads),len(multiplier))
@@ -48,34 +52,37 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
         pq_loads_updated = {a:pq_updated[i].tolist() for i, a in enumerate(pq_loads.keys())}
         mpc.bus = np.array(list({**all_buses, **pq_loads_updated}.values()))
         octave.push("mpc",mpc)
-        octave.eval("evalc('[baseMVA, bus, gen, gencost, branch, f, success, et] = runopf(mpc);');")
+        if verbose:
+            octave.eval("[baseMVA, bus, gen, gencost, branch, f, success, et] = runopf(mpc);")
+        else:
+            octave.eval("evalc('[baseMVA, bus, gen, gencost, branch, f, success, et] = runopf(mpc);');")
         #octave.eval("[success, results] = runopf(mpc);")
         success = octave.pull("success")
         if not success:
             network, convergence_time = None, None
             #octave.eval(f'save("-binary", "converged_{uniqueid}.mat", "results")')
+        else:
+            bus_names = mpc.bus_name
+            try:
+                network = pp.converter.from_ppc(mpc)
+            except Exception as e:
+                print("error conversion", e)
+                mpc.bus_name = [e.item() for e in bus_names]
+                network = pp.converter.from_ppc(mpc)
+            mpc.bus = octave.pull("bus")
+            mpc.gen = octave.pull("gen")
+            mpc.branch = octave.pull("branch")
+            convergence_time = octave.pull("et")
 
-        bus_names = mpc.bus_name
-        try:
-            network = pp.converter.from_ppc(mpc)
-        except Exception as e:
-            print("error conversion", e)
-            mpc.bus_name = [e.item() for e in bus_names]
-            network = pp.converter.from_ppc(mpc)
-        mpc.bus = octave.pull("bus")
-        mpc.gen = octave.pull("gen")
-        mpc.branch = octave.pull("branch")
-        convergence_time = octave.pull("et")
-
-        pp.runpp(network)
-        #network.res_bus[["p_mw", "q_mvar"]] = mpc.bus[:, 2:4]
-        network.res_bus[["vm_pu","va_degree"]] = mpc.bus[:,7:9]
-        generators = mpc.gen[:,0:6]
-        ext_grid_bus = network.ext_grid.bus.values[0]
-        ext_grid_index = generators[:,0].tolist().index(ext_grid_bus)
-        network.res_ext_grid[["p_mw", "q_mvar"]] = generators[ext_grid_index, 1:3]
-        network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators,ext_grid_index, axis=0)[:,1:3]
-        #network.res_gen[['vm_pu']] = np.delete(generators,ext_grid_index, axis=0)[:,5]
+            pp.runpp(network)
+            #network.res_bus[["p_mw", "q_mvar"]] = mpc.bus[:, 2:4]
+            network.res_bus[["vm_pu","va_degree"]] = mpc.bus[:,7:9]
+            generators = mpc.gen[:,0:6]
+            ext_grid_bus = network.ext_grid.bus.values[0]
+            ext_grid_index = generators[:,0].tolist().index(ext_grid_bus)
+            network.res_ext_grid[["p_mw", "q_mvar"]] = generators[ext_grid_index, 1:3]
+            network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators,ext_grid_index, axis=0)[:,1:3]
+            #network.res_gen[['vm_pu']] = np.delete(generators,ext_grid_index, axis=0)[:,5]
 
         networks.append(network)
         convergence_times.append(convergence_time)

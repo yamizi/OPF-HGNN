@@ -51,6 +51,7 @@ def build_batch_graph(sample_id, network, mutations,mutation_rate,opf,transforms
     graphs = []
     loads = [mutate_loads(copy.deepcopy(network), mutation_rate=mutation_rate, relative=True)[1] for i in range(batch_size)]
     octave_path = os.environ.get("OCTAVE_PATH", None)
+    #try:
     if True:
         networks, convergence_times = matpower_opf(case=case, all_loads=loads, octave_path=octave_path, batch_size=batch_size)
         for i, network in enumerate(networks):
@@ -67,7 +68,6 @@ def build_batch_graph(sample_id, network, mutations,mutation_rate,opf,transforms
     # except Exception as e:
     #     print("opf 3 error", e)
     #     return graphs
-
 
     return graphs
 
@@ -170,7 +170,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
 
     while len(graphs)<nbsamples and sample_id<nbsamples*100:
         # stop if we mutated more than 100 times the size needed without finding enough valid examples
-        print("sample id",sample_id)
+        print("loop sample id",sample_id," total graphs",len(graphs))
         sample_id = sample_id+nbsamples
 
         if use_ray:
@@ -183,7 +183,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
             if opf==3 and batch_size>1:
                 graph_y_network = []
                 for i in range(len(graphs),nbsamples,batch_size):
-                    print("batch generation ",i,"/",nbsamples)
+                    print("batch generation ",i,"+",batch_size,"/",nbsamples)
                     step_network = build_batch_graph(sample_id, original_network, mutations,mutation_rate,opf,transforms, scale, dataset_type, hetero,
                         save_dataframes,case, uniqueid, experiment=experiment, batch_size=batch_size)
                     graph_y_network = graph_y_network + step_network
