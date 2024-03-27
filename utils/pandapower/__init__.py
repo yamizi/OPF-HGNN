@@ -143,7 +143,7 @@ def build_one_graph(sample_id, network, mutations,mutation_rate,opf,transforms, 
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=1,
                   mutations = ["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None,scale=True,
-                  hetero=True, device="cpu",use_ray=True, batch_size=25):
+                  hetero=True, device="cpu",use_ray=True, batch_size=100):
     print(f"building dataset with {nbsamples} variants, ray {use_ray} and device {device}")
 
     case_method = getattr(pp.networks, case)

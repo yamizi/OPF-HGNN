@@ -66,7 +66,6 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
             try:
                 network = pp.converter.from_ppc(mpc)
             except Exception as e:
-                print("error conversion", e)
                 mpc.bus_name = [e.item() for e in bus_names]
                 network = pp.converter.from_ppc(mpc)
             mpc.bus = octave.pull("bus")

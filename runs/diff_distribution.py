@@ -84,12 +84,11 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                                              mutation_rate=mutation_rate,
                                                              uniqueid="{}/train".format(uniqueid),
                                                              mutations=mutations, **common_params)
-
             train_graphs += train_graph
             train_networks["mutants"] += train_network["mutants"]
             train_networks["convergence_time"] += train_network["convergence_time"]
             train_networks["original"] += [train_network["original"]]
-            nb_graphs += nb_graph
+            nb_graphs += len(train_graph)
 
         if filter:
             train_graphs, train_networks, val_graphs, valid_networks = clear_duplicates(train_graphs, train_networks,
@@ -97,7 +96,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
         print("Correct training graphs {}/{}".format(len(train_graphs), nb_graphs))
         experiment.log_metric("nb_train_graphs", len(train_graphs))
-        [experiment.log_metric("convergence_train_graphs", e) for e in train_networks["convergence_time"]]
+        [experiment.log_metric("convergence_train_graphs", e,i) for (i,e) in enumerate(train_networks["convergence_time"])]
 
         with(open(pickle_file, "ab") as f):
             pickle.dump({"train_graphs": [e.to("cpu") for e in train_graphs], "train_networks": train_networks, "val_graphs": val_graphs,
@@ -192,7 +191,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 if __name__ == "__main__":
     max_epochs = 100
     case = "case1354pegase"
-    case = "case118"
+    #case = "case9"
     mutation = "load_relative"
     training_case = [[case, 40, 0.7, [mutation]]]
     validation_case = [case, 10, 0.7, [mutation]]

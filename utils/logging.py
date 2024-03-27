@@ -24,6 +24,10 @@ def init_comet(args, project_name="debug", workspace="hgnn"):
                             parse_args=False, display_summary=False, disabled=False)
     experiment.log_parameters(args)
 
+    if project_name !="debug":
+        import warnings
+        warnings.filterwarnings("ignore")
+
     return experiment
 
 
