@@ -25,6 +25,26 @@ def node_loss(yhat, y, mask=None):
         return criterion(yhat.flatten(), y.flatten()[mask.bool().flatten()])
 
 
+
+def clamp_boundaries(boundaries, y, node=None, mask=None):
+    if mask is not None:
+        masked_y = y[mask.bool()].reshape((y.shape[0],-1))
+    else:
+        masked_y = y
+
+    min_boundaries = torch.stack([boundaries[:, 2 * i] for i in range(y.shape[1] - 1)
+                       if torch.isnan(boundaries[:, 2 * i]).sum() == 0],1)
+
+    max_boundaries = torch.stack([boundaries[:, 2 * i+1] for i in range(y.shape[1] - 1)
+                      if torch.isnan(boundaries[:, 2 * i+1]).sum() == 0],1)
+
+    masked_y  = torch.clamp(masked_y,min_boundaries,max_boundaries)
+
+    clamped = y * (1-mask)
+    clamped[mask.bool()] = masked_y.flatten()
+    return  clamped
+
+
 def boundary_loss(boundaries, y, node=""):
     # minp = boundaries[:,0] # maxp = boundaries[:,1]
     # minq = boundaries[:,2] # maxq = boundaries[:,3]
@@ -53,7 +73,7 @@ def auto_garbage_collect(pct=50.0):
     return
 
 
-def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, val_loader):
+def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, val_loader, clamp_boundary):
     # print("objective", config)  # ①
 
     model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
@@ -71,7 +91,8 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
 
     while True:
         for batch in train_loader:
-            out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, node_loss, hetero)
+            out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, node_loss, hetero,
+                                                     clamp_boundary=clamp_boundary)
         lr_scheduler.step()
 
         val_loss_gen = 0
@@ -80,7 +101,7 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
         val_loss_line = 0
 
         for batch in val_loader:
-            last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, node_loss, hetero)
+            last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, node_loss, hetero, clamp_boundary=clamp_boundary==2)
 
             val_loss_gen += losses[0].mean()
             val_loss_ext_grid += losses[1].mean() if len(losses) > 1 else 0
@@ -95,7 +116,7 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
 
 def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_nodes=["gen", "ext_grid", "bus"],
              device="cpu", hetero=True, base_lr=[0.1, 1], plot=False, num_graphs=1000, train_batch_size=32,
-             val_batch_size=32, train_graphs=None):
+             val_batch_size=32, train_graphs=None, clamp_boundary=0):
     if train_graphs is None:
         with open(pickle_file, "rb") as pickled:
             print("Loading cross validation dataset from", pickle_file)
@@ -132,7 +153,7 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
     tuner = tune.Tuner(  # ③
         tune.with_parameters(objective, graph=ray.put(graph), device=device, max_epochs=max_epochs, y_nodes=y_nodes,
                              hetero=hetero, train_loader=ray.put(training_loader),
-                             val_loader=ray.put(validation_loader)),
+                             val_loader=ray.put(validation_loader), clamp_boundary=clamp_boundary),
         tune_config=tune.TuneConfig(
             search_alg=algo,
             num_samples=num_samples,
@@ -159,7 +180,7 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
 
 
 def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "ext_grid"], log_every=10,
-              device="cpu", decay_lr=0.3, hetero=True, base_lr=0.01, experiment=None):
+              device="cpu", decay_lr=0.3, hetero=True, base_lr=0.01, experiment=None, clamp_boundary=0):
     optimizer = torch.optim.Adam(model.parameters(), lr=base_lr)
     milestones = [max_epochs // 2, (max_epochs * 3) // 4, (max_epochs * 9) // 10]
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=decay_lr)
@@ -184,7 +205,8 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         train_loss = 0
         boundary_train_loss = 0
         for batch in train_loader:
-            out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, loss_fn, hetero)
+            out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, loss_fn, hetero,
+                                                     clamp_boundary=clamp_boundary)
             train_loss += loss
             boundary_train_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
 
@@ -211,7 +233,8 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         out_all = []
         with torch.no_grad():
             for batch in val_loader:
-                last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, loss_fn, hetero)
+                last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, loss_fn, hetero,
+                                                             clamp_boundary=clamp_boundary==2)
                 val_loss += loss
                 boundary_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
                 val_losses_all.append(losses)
@@ -256,7 +279,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
 
 def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True,
-               use_boundary_loss=True):
+               use_boundary_loss=True, clamp_boundary=True):
     model.train()
     optimizer.zero_grad()
     if loss_f is None:
@@ -283,6 +306,10 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
                 output = output[mask_node[i]]
 
             output_mask = data[node].output_mask
+
+            if clamp_boundary:
+                output = clamp_boundaries(data[node].boundaries, output, node, output_mask)
+
             loss_label = loss_f(label, output, output_mask)
             losses.append(loss_label.cpu().detach().numpy())
             if use_boundary_loss:
@@ -328,7 +355,7 @@ def timeit(model,data, count=100000, hetero=True):
     total = time.time() - begin
     print(total)
 
-def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True):
+def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True, clamp_boundary=0):
     model.eval()
     if loss_f is None:
         loss_f = F.cross_entropy
@@ -356,6 +383,9 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
                 output = output[mask_node[i]]
 
             output_mask = data[node].output_mask
+
+            if clamp_boundary:
+                output = clamp_boundaries(data[node].boundaries, output, node,output_mask)
             loss_node = loss_f(label, output, output_mask)
             loss_boundary = boundary_loss(data[node].boundaries, output)
             losses.append(loss_node.cpu().detach().numpy())
