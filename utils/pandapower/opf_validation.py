@@ -70,7 +70,7 @@ def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True, opf=1, use
     (out_all, val_losses_all) = outputs
     if hetero:
         output_nodes = {node:torch.cat([e[node] for e in out_all],0) for node in y_nodes}
-        nb_gens = {node:len(networks.get("original")[node]) for node in y_nodes}
+        nb_gens = {node:len(networks.get("mutants")[0][node]) for node in y_nodes}
     else:
         bus_nodes = torch.cat([e for e in out_all],0)
         y_nodes = ["ext_grid","gen","sgen"]
