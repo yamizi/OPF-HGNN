@@ -35,7 +35,9 @@ def get_parser():
     parser.add_argument('-n', '--comet_name', help="Name of the comet project", type=str, default="")
     parser.add_argument('-o', '--opf', help="Scaling features", type=int, default=1)
     parser.add_argument('-r', '--ray', help="Parallelize with ray", type=int, default=0)
-    parser.add_argument('-cb', '--clamp_boundary', help="Clamping output; 1 clamp training only, 2 clamp vboth training and evaluation", type=int, default=1)
+    parser.add_argument('-cb', '--clamp_boundary',
+                        help="Clamping output; 1 clamp training only, 2 clamp vboth training and evaluation", type=int,
+                        default=1)
     parser.add_argument('-e', '--epochs', help="Max epochs", type=int, default=500)
     parser.add_argument('-hp', '--num_samples', help="Num samples in hyper-param optimization", type=int, default=250)
 
@@ -45,6 +47,7 @@ def get_parser():
     parser.add_argument('-dlr', '--decay_lr', help="Learnng rate decay", type=float, default=0.52)
     parser.add_argument('-cl', '--cls', help="Graph layer classes", type=str, default="sage")
     parser.add_argument('-ag', '--aggr', help="Message passing aggregation", type=str, default="mean")
-    parser.add_argument('-hc', '--hidden_channels', help="Hidden layers features seprated by :", type=str, default="64:64")
+    parser.add_argument('-hc', '--hidden_channels', help="Hidden layers features seprated by :", type=str,
+                        default="64:64")
 
     return parser

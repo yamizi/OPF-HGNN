@@ -25,24 +25,23 @@ def node_loss(yhat, y, mask=None):
         return criterion(yhat.flatten(), y.flatten()[mask.bool().flatten()])
 
 
-
 def clamp_boundaries(boundaries, y, node=None, mask=None):
     if mask is not None:
-        masked_y = y[mask.bool()].reshape((y.shape[0],-1))
+        masked_y = y[mask.bool()].reshape((y.shape[0], -1))
     else:
         masked_y = y
 
     min_boundaries = torch.stack([boundaries[:, 2 * i] for i in range(y.shape[1] - 1)
-                       if torch.isnan(boundaries[:, 2 * i]).sum() == 0],1)
+                                  if torch.isnan(boundaries[:, 2 * i]).sum() == 0], 1)
 
-    max_boundaries = torch.stack([boundaries[:, 2 * i+1] for i in range(y.shape[1] - 1)
-                      if torch.isnan(boundaries[:, 2 * i+1]).sum() == 0],1)
+    max_boundaries = torch.stack([boundaries[:, 2 * i + 1] for i in range(y.shape[1] - 1)
+                                  if torch.isnan(boundaries[:, 2 * i + 1]).sum() == 0], 1)
 
-    masked_y  = torch.clamp(masked_y,min_boundaries,max_boundaries)
+    masked_y = torch.clamp(masked_y, min_boundaries, max_boundaries)
 
-    clamped = y * (1-mask)
+    clamped = y * (1 - mask)
     clamped[mask.bool()] = masked_y.flatten()
-    return  clamped
+    return clamped
 
 
 def boundary_loss(boundaries, y, node=""):
@@ -52,7 +51,6 @@ def boundary_loss(boundaries, y, node=""):
     # minVa = boundaries[:,6] # maxVa = boundaries[:,7]
     # mini_from_ka = boundaries[:,12] # maxi_from_ka = boundaries[:,13]
     # mini_to_ka = boundaries[:,14] # maxi_to_ka = boundaries[:,15]
-
 
     boundary_losses = [torch.max(torch.zeros_like(boundaries[:, 2 * i]), boundaries[:, 2 * i] - y[:, i]) + torch.max(
         torch.zeros_like(boundaries[:, 2 * i + 1]), y[:, i] - boundaries[:, 2 * i + 1]) for i in range(y.shape[1] - 1)
@@ -79,8 +77,7 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
     model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
                 out_channels=graph.num_outputs, aggr=config.get("aggr"), cls=config.get("cls"))
 
-
-    metadata =  graph[0].cpu().metadata()
+    metadata = graph[0].cpu().metadata()
     model = to_hetero(model, metadata, aggr='sum')
     model = model.to(device)
 
@@ -101,7 +98,8 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
         val_loss_line = 0
 
         for batch in val_loader:
-            last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, node_loss, hetero, clamp_boundary=clamp_boundary==2)
+            last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, node_loss, hetero,
+                                                         clamp_boundary=clamp_boundary == 2)
 
             val_loss_gen += losses[0].mean()
             val_loss_ext_grid += losses[1].mean() if len(losses) > 1 else 0
@@ -142,13 +140,13 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
                     "aggr": tune.choice(["mean", "max"]), "cls": tune.choice(["gcn", "sage", "gat"])}
 
     print("running optuna search on ", search_space, "for epochs", max_epochs, "and size", len(training_loader.dataset)
-          ,"using device", device)
+          , "using device", device)
 
     metrics = ["val_loss_bus", "val_loss_gen", "val_loss_ext_grid"]
     # metrics = ["val_loss_gen", "val_loss_ext_grid"]
     algo = OptunaSearch(metric=metrics, mode=["min"] * len(metrics))  # ②
 
-    #ray.init(num_cpus=10)
+    # ray.init(num_cpus=10)
 
     tuner = tune.Tuner(  # ③
         tune.with_parameters(objective, graph=ray.put(graph), device=device, max_epochs=max_epochs, y_nodes=y_nodes,
@@ -234,7 +232,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         with torch.no_grad():
             for batch in val_loader:
                 last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, loss_fn, hetero,
-                                                             clamp_boundary=clamp_boundary==2)
+                                                             clamp_boundary=clamp_boundary == 2)
                 val_loss += loss
                 boundary_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
                 val_losses_all.append(losses)
@@ -314,7 +312,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             losses.append(loss_label.cpu().detach().numpy())
             if use_boundary_loss:
                 loss_boundary = boundary_loss(data[node].boundaries, output, node)
-                loss_node = torch.cat([loss_label.reshape((loss_boundary.shape[0],-1)), loss_boundary.unsqueeze(1)], 1)
+                loss_node = torch.cat([loss_label.reshape((loss_boundary.shape[0], -1)), loss_boundary.unsqueeze(1)], 1)
                 boundary_losses.append(loss_boundary.cpu().detach().numpy())
             else:
                 loss_node = loss_label
@@ -343,7 +341,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     return out, float(loss), losses, boundary_losses
 
 
-def timeit(model,data, count=100000, hetero=True):
+def timeit(model, data, count=100000, hetero=True):
     import time
     return
     nb = count // len(data)
@@ -354,6 +352,7 @@ def timeit(model,data, count=100000, hetero=True):
         model(*params)
     total = time.time() - begin
     print(total)
+
 
 def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True, clamp_boundary=0):
     model.eval()
@@ -373,7 +372,6 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
 
         timeit(model, data)
 
-
         for i, node in enumerate(feature_node):
             label = data[node].y
             output = out[node]
@@ -385,7 +383,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
             output_mask = data[node].output_mask
 
             if clamp_boundary:
-                output = clamp_boundaries(data[node].boundaries, output, node,output_mask)
+                output = clamp_boundaries(data[node].boundaries, output, node, output_mask)
             loss_node = loss_f(label, output, output_mask)
             loss_boundary = boundary_loss(data[node].boundaries, output)
             losses.append(loss_node.cpu().detach().numpy())

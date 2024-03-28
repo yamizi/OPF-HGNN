@@ -7,12 +7,14 @@ import numpy as np
 import pandas as pd
 import json
 
+
 class NumpyEncoder(json.JSONEncoder):
     import numpy as np
     def default(self, obj):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+
 
 def init_comet(args, project_name="debug", workspace="hgnn"):
     timestamp = time.time()
@@ -24,18 +26,18 @@ def init_comet(args, project_name="debug", workspace="hgnn"):
                             parse_args=False, display_summary=False, disabled=False)
     experiment.log_parameters(args)
 
-    if project_name !="debug":
+    if project_name != "debug":
         import warnings
         warnings.filterwarnings("ignore")
 
     return experiment
 
 
-def log_dataframe(dic,experiment, name, base=0, limit=0):
+def log_dataframe(dic, experiment, name, base=0, limit=0):
     initial_val = len(list(dic.values())[0])
     equal_nb = all([initial_val == len(val) for val in dic.values()])
     if equal_nb:
-        experiment.log_dataframe_profile(pd.DataFrame(dic),name=f"{name}_{base}")
+        experiment.log_dataframe_profile(pd.DataFrame(dic), name=f"{name}_{base}")
     else:
         for (e, v) in dic.items():
             experiment.log_dataframe_profile(pd.DataFrame(v), name=f"{name}_{base}_{e}")
@@ -45,12 +47,12 @@ def log_dict_series(dic, experiment, limit=0):
     counter = 0
     for (e, v) in dic.items():
         for i, l in enumerate(v):
-            if limit>0 and i > limit:
+            if limit > 0 and i > limit:
                 break
             experiment.log_metric(e, l, step=i)
-            counter+=1
+            counter += 1
 
-        if counter>9000:
+        if counter > 9000:
             time.sleep(60)
             counter = 0
 
@@ -76,7 +78,7 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
     for node, outputs in output_nodes.items():
         ground_truth = labels[node]
 
-        if node in ["gen","ext_grid"]:
+        if node in ["gen", "ext_grid"]:
             dic = {**dic,
                    "P_pred_" + node: outputs[:, 0].cpu().numpy(), "P_true_" + node: ground_truth[:, 0].cpu().numpy(),
                    "Q_pred_" + node: outputs[:, 1].cpu().numpy(), "Q_true_" + node: ground_truth[:, 1].cpu().numpy()}
@@ -104,7 +106,8 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
                    "relativeSE_Va_" + node: relativeSE_Va}
 
         if node in ["line"]:
-            dic = {"pl_mw_pred_" + node: outputs[:, 4].cpu().numpy(), "pl_mw_true_" + node: ground_truth[:, 0].cpu().numpy(),
+            dic = {"pl_mw_pred_" + node: outputs[:, 4].cpu().numpy(),
+                   "pl_mw_true_" + node: ground_truth[:, 0].cpu().numpy(),
                    "Va_pred_" + node: outputs[:, 5].cpu().numpy(), "Va_true_" + node: ground_truth[:, 1].cpu().numpy(),
                    **dic}
 
@@ -114,7 +117,8 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
             SE_ql_mvar = (outputs[:, 5].cpu().numpy() - ground_truth[:, 1].cpu().numpy()) ** 2
             relativeSE_ql_mvar = SE_ql_mvar / (ground_truth[:, 1].cpu().numpy() ** 2 + delta)
 
-            dic = {**dic, "SE_pl_mw_" + node: SE_pl_mw, "relativeSE_pl_mw_" + node: relativeSE_pl_mw, "SE_ql_mvar_" + node: SE_ql_mvar,
+            dic = {**dic, "SE_pl_mw_" + node: SE_pl_mw, "relativeSE_pl_mw_" + node: relativeSE_pl_mw,
+                   "SE_ql_mvar_" + node: SE_ql_mvar,
                    "relativeSE_ql_mvar_" + node: relativeSE_ql_mvar}
 
             dic = {"i_from_ka_pred_" + node: outputs[:, 6].cpu().numpy(),

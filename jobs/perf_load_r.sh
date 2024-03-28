@@ -16,10 +16,9 @@ AGG="mean"
 HC="64:64"
 
 OPF=3
-COMMON='--ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL'
 
-python experiments/test_performances.py --cases "case9" --base_lr $LR --decay_lr $DLR --cls $CLS --aggr $AGG --hidden_channels $HC $COMMON
-python experiments/test_performances.py --cases "cas14" $COMMON
-python experiments/test_performances.py --cases "case30" $COMMON
-python experiments/test_performances.py --cases "case118" $COMMON
-python experiments/test_performances.py --cases "case1354" $COMMON
+python experiments/test_performances.py --cases "case9" --base_lr $LR --decay_lr $DLR --cls $CLS --aggr $AGG --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --hidden_channels $HC
+python experiments/test_performances.py --cases "cas14" --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL
+python experiments/test_performances.py --cases "case30" --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL
+python experiments/test_performances.py --cases "case118" --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL
+python experiments/test_performances.py --cases "case1354" --ray $RAY --cv_ratio $CV --num_samples $HP --mutations "load_relative" --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL

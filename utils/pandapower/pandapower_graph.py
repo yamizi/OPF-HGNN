@@ -9,14 +9,16 @@ from torch_geometric.data import (
     InMemoryDataset
 )
 from pandapower.auxiliary import pandapowerNet
-#from sklearn.preprocessing import StandardScaler
+# from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
 import json
 from copy import deepcopy
 from utils.pandapower.normalization import normalizePQ
 
-INF_VAL = 10**5
+INF_VAL = 10 ** 5
+
+
 class PandaPowerGraph(InMemoryDataset):
     def __init__(self, network: pandapowerNet, preprocess: Optional[str] = None,
                  transform: Optional[Callable] = None, scale=True,
@@ -44,24 +46,26 @@ class PandaPowerGraph(InMemoryDataset):
             self.scalers = scalers
             self.dataframes = dataframes
 
-    def to(self,device):
+    def to(self, device):
         self.data = self.data.to(device)
         return self
+
     def num_features(self, node):
-        default_features = {"bus":12,"load":10,"shunt":10,"ext_grid":15,"gen":18,"sgen":7,"line":27,
-                            "trafo":29,"trafo3w":35,"impedance":8,"xward":10}
-        return default_features.get(node,1)
+        default_features = {"bus": 12, "load": 10, "shunt": 10, "ext_grid": 15, "gen": 18, "sgen": 7, "line": 27,
+                            "trafo": 29, "trafo3w": 35, "impedance": 8, "xward": 10}
+        return default_features.get(node, 1)
+
     @property
     def num_outputs(self) -> int:
-        return 8 # ["p_mw", "q_mvar", "vm_pu", "va_degree", "pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
+        return 8  # ["p_mw", "q_mvar", "vm_pu", "va_degree", "pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
 
     @property
     def output_nodes(self) -> [str]:
-        return [e for e in ["ext_grid", "gen", "bus","line"] if hasattr(self._data[e], "y")]
+        return [e for e in ["ext_grid", "gen", "bus", "line"] if hasattr(self._data[e], "y")]
 
     @property
     def total_output_nodes(self) -> [str]:
-        return np.sum([len(self.dataframes.get(e)) for e in ["ext_grid", "gen", "bus", "line"]])*self.num_outputs
+        return np.sum([len(self.dataframes.get(e)) for e in ["ext_grid", "gen", "bus", "line"]]) * self.num_outputs
 
     def export(self, filename="export", format="json", experiment=None):
 
@@ -81,24 +85,24 @@ class PandaPowerGraph(InMemoryDataset):
     def build_homo_data(self, network, include_res=True, opf_as_y=True, scale=True):
         node = "bus"
         bus_df = deepcopy(getattr(network, node)) if (
-                    len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(getattr(network, node),
-                                                                                                getattr(network,
-                                                                                                        "res_" + node),
-                                                                                                "left", on=None,
-                                                                                                left_index=True,
-                                                                                                right_index=True)
+                len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(getattr(network, node),
+                                                                                            getattr(network,
+                                                                                                    "res_" + node),
+                                                                                            "left", on=None,
+                                                                                            left_index=True,
+                                                                                            right_index=True)
         bus_df.drop(columns=["name"], inplace=True)
         bus_df["n_id"] = bus_df.index
         merged_bus_df = bus_df.copy(True)
 
         node = "ext_grid"
         ext_grid_df = deepcopy(getattr(network, node)) if (
-                    len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(getattr(network, node),
-                                                                                                getattr(network,
-                                                                                                        "res_" + node),
-                                                                                                "left", on=None,
-                                                                                                left_index=True,
-                                                                                                right_index=True)
+                len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(getattr(network, node),
+                                                                                            getattr(network,
+                                                                                                    "res_" + node),
+                                                                                            "left", on=None,
+                                                                                            left_index=True,
+                                                                                            right_index=True)
         ext_grid_df["has_grid"] = 1
         ext_grid_df.drop(columns=["name"], inplace=True)
         if len(ext_grid_df):
@@ -107,12 +111,12 @@ class PandaPowerGraph(InMemoryDataset):
 
         node = "gen"
         gen_df = deepcopy(getattr(network, node)) if (
-                    len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(getattr(network, node),
-                                                                                                getattr(network,
-                                                                                                        "res_" + node),
-                                                                                                "left", on=None,
-                                                                                                left_index=True,
-                                                                                                right_index=True)
+                len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(getattr(network, node),
+                                                                                            getattr(network,
+                                                                                                    "res_" + node),
+                                                                                            "left", on=None,
+                                                                                            left_index=True,
+                                                                                            right_index=True)
         gen_df["has_gen"] = 1
         gen_df.drop(columns=["name"], inplace=True)
         if len(gen_df):
@@ -121,12 +125,12 @@ class PandaPowerGraph(InMemoryDataset):
 
         node = "sgen"
         sgen_df = deepcopy(getattr(network, node)) if (
-                    len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(getattr(network, node),
-                                                                                                getattr(network,
-                                                                                                        "res_" + node),
-                                                                                                "left", on=None,
-                                                                                                left_index=True,
-                                                                                                right_index=True)
+                len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(getattr(network, node),
+                                                                                            getattr(network,
+                                                                                                    "res_" + node),
+                                                                                            "left", on=None,
+                                                                                            left_index=True,
+                                                                                            right_index=True)
         sgen_df["has_sgen"] = 1
         sgen_df.drop(columns=["name"], inplace=True)
         if len(sgen_df):
@@ -138,7 +142,7 @@ class PandaPowerGraph(InMemoryDataset):
                 (("q_mvar" in a) or ("p_mw" in a)) and not ("min" in a or "max" in a)]
         x = merged_bus_df.drop(columns=cols)
 
-        scaler = None #StandardScaler()
+        scaler = None  # StandardScaler()
         one_hot = pd.get_dummies(x).dropna(axis=1).values.astype("float32")
         if scale and scaler is not None:
             one_hot = scaler.fit_transform(one_hot)
@@ -149,13 +153,14 @@ class PandaPowerGraph(InMemoryDataset):
                             ["ext_grid", "gen", "sgen"]])
         # y_dict = dict(zip(y[:, 0].astype(int), y[:, 1:3].tolist()))
         y_dict = dict(zip(y[:, 0].astype(int), torch.Tensor(y[:, 1:3]).to(self.device)))
-        y_dict_default = dict(zip(list(range(len(bus_df))), [torch.Tensor([np.nan, np.nan]).to(self.device)] * len(bus_df)))
+        y_dict_default = dict(
+            zip(list(range(len(bus_df))), [torch.Tensor([np.nan, np.nan]).to(self.device)] * len(bus_df)))
         nxgraph = create_nxgraph(network, multi=False, calc_branch_impedances=True)
         nx.set_node_attributes(nxgraph, x_dict, "x")
         nx.set_node_attributes(nxgraph, {**y_dict_default, **y_dict}, "y")
         graph = from_networkx(nxgraph)
 
-        dataframes = {"bus": x,"ext_grid":ext_grid_df,"gen":gen_df,"sgen":sgen_df}
+        dataframes = {"bus": x, "ext_grid": ext_grid_df, "gen": gen_df, "sgen": sgen_df}
         return graph, dataframes, {"bus": scaler}
 
     def build_hetero_data(self, network, include_res=True, opf_as_y=True, scale=False, boundary_tolerance=1e-5):
@@ -167,7 +172,7 @@ class PandaPowerGraph(InMemoryDataset):
         dataframes = {}
         scalers = {}
 
-        bus_index = {e:k for (k,e) in enumerate(network.bus.index.to_list())}
+        bus_index = {e: k for (k, e) in enumerate(network.bus.index.to_list())}
 
         for node in node_types:
             edges_ = []
@@ -176,22 +181,26 @@ class PandaPowerGraph(InMemoryDataset):
             edges_to2 = []
 
             merged_df = deepcopy(getattr(network, node)) if (
-                        len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(
+                    len(getattr(network, "res_" + node)) == 0 or not include_res) else pd.merge(
                 getattr(network, node), getattr(network, "res_" + node), "left", on=None, left_index=True,
                 right_index=True)
 
             if len(merged_df):
-                boundaries = np.nan * np.ones((len(merged_df), self.num_outputs*2))
-                mask = np.zeros((len(merged_df),self.num_outputs))
-                merged_df = normalizePQ(merged_df, columns=["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"],min_val=0,max_val=network.sn_mva)
+                boundaries = np.nan * np.ones((len(merged_df), self.num_outputs * 2))
+                mask = np.zeros((len(merged_df), self.num_outputs))
+                merged_df = normalizePQ(merged_df, columns=["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"],
+                                        min_val=0, max_val=network.sn_mva)
                 if node == "ext_grid" or node == "gen":
                     y = ["p_mw", "q_mvar"]
-                    mask[:,0:2] = 1
+                    mask[:, 0:2] = 1
                     drop_y = y
-                    #we enforce boundaries slightly tighter than original boundaries in the loss estimation
+                    # we enforce boundaries slightly tighter than original boundaries in the loss estimation
                     boundaries_conservative = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
-                    boundaries_conservative = boundaries_conservative + np.repeat([[10*boundary_tolerance, 10*boundary_tolerance, -10*boundary_tolerance, -10*boundary_tolerance]],
-                                len(merged_df), 0)
+                    boundaries_conservative = boundaries_conservative + np.repeat([[10 * boundary_tolerance,
+                                                                                    10 * boundary_tolerance,
+                                                                                    -10 * boundary_tolerance,
+                                                                                    -10 * boundary_tolerance]],
+                                                                                  len(merged_df), 0)
                     boundaries[:, 0:4] = boundaries_conservative
                 elif node == "sgen":
                     y = ["p_mw", "q_mvar"]
@@ -200,25 +209,25 @@ class PandaPowerGraph(InMemoryDataset):
                     y = ["vm_pu", "va_degree"]
                     boundaries_conservative = merged_df[["min_vm_pu", "max_vm_pu"]].values
                     boundaries_conservative = boundaries_conservative + np.repeat([[10 * boundary_tolerance,
-                                                                                   -10 * boundary_tolerance]],
+                                                                                    -10 * boundary_tolerance]],
                                                                                   len(merged_df), 0)
-                    boundaries[:,4:6] = boundaries_conservative
-                    mask[:,2:4] = 1
+                    boundaries[:, 4:6] = boundaries_conservative
+                    mask[:, 2:4] = 1
                     drop_y = y
                 elif node in ["line"]:
-                    y = ["pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
-                    mask[:,4:8] = 1
+                    y = ["pl_mw", "ql_mvar", "i_from_ka", "i_to_ka"]
+                    mask[:, 4:8] = 1
                     drop_y = y
-                    max_lines = merged_df[["max_i_ka"]].values -10 * boundary_tolerance
-                    boundaries[:,12:16] = np.concatenate([np.zeros_like(max_lines),max_lines, np.zeros_like(max_lines),max_lines],1)
-
+                    max_lines = merged_df[["max_i_ka"]].values - 10 * boundary_tolerance
+                    boundaries[:, 12:16] = np.concatenate(
+                        [np.zeros_like(max_lines), max_lines, np.zeros_like(max_lines), max_lines], 1)
 
                 data[node].boundaries = torch.Tensor(boundaries).to(self.device)
                 data[node].output_mask = torch.Tensor(mask).to(self.device)
             if opf_as_y:
 
-                if node in ["ext_grid", "gen", "bus","line"] and len(getattr(network, "res_" + node)) > 0:
-                    merged_df = merged_df.rename(columns={"p_mw_y": "p_mw", "vm_pu_y": "vm_pu", 'q_mvar_y':'q_mvar'})
+                if node in ["ext_grid", "gen", "bus", "line"] and len(getattr(network, "res_" + node)) > 0:
+                    merged_df = merged_df.rename(columns={"p_mw_y": "p_mw", "vm_pu_y": "vm_pu", 'q_mvar_y': 'q_mvar'})
                     if include_res:
                         merged_df.drop(columns=drop_y, inplace=True)
                     pf = getattr(network, "res_" + node)
@@ -235,40 +244,44 @@ class PandaPowerGraph(InMemoryDataset):
                         node_cost.index = node_cost.element
                         merged_df = pd.merge(merged_df, node_cost, how="left", right_index=True, left_index=True).drop(
                             columns=["et", "element"])
-                
-            
-            merged_df.drop(columns=["name"], inplace=True)
-            if node=="bus":
-                merged_df.drop(columns=["type","zone"], inplace=True)
 
-            scaler = None # StandardScaler()
-            merged_df = merged_df.replace([np.inf, -np.inf], [-INF_VAL,INF_VAL])
-            merged_df = normalizePQ(merged_df,min_val=0,max_val=network.sn_mva)
+            merged_df.drop(columns=["name"], inplace=True)
+            if node == "bus":
+                merged_df.drop(columns=["type", "zone"], inplace=True)
+
+            scaler = None  # StandardScaler()
+            merged_df = merged_df.replace([np.inf, -np.inf], [-INF_VAL, INF_VAL])
+            merged_df = normalizePQ(merged_df, min_val=0, max_val=network.sn_mva)
             one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
             if scale and scaler is not None:
                 one_hot = scaler.fit_transform(one_hot)
 
-            data[node].x = torch.Tensor(one_hot).to(self.device) if len(one_hot) else torch.zeros(1,self.num_features(node)).to(self.device)
+            data[node].x = torch.Tensor(one_hot).to(self.device) if len(one_hot) else torch.zeros(1, self.num_features(
+                node)).to(self.device)
             scalers[node] = scaler
 
             if "from_bus" in merged_df.columns:
                 edges_from = [bus_index[e] for e in merged_df["from_bus"].values]
                 merged_df.drop(columns=["from_bus"], inplace=True)
-                data['bus', 'to', node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()]).to(self.device)
+                data['bus', 'to', node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()]).to(
+                    self.device)
 
             if "to_bus" in merged_df.columns:
                 edges_to = [bus_index[e] for e in merged_df["to_bus"].values]
                 merged_df.drop(columns=["to_bus"], inplace=True)
-                data[node, 'to', 'bus'].edge_index = torch.LongTensor([merged_df.index.tolist(), edges_to]).to(self.device)
+                data[node, 'to', 'bus'].edge_index = torch.LongTensor([merged_df.index.tolist(), edges_to]).to(
+                    self.device)
 
             if "hv_bus" in merged_df.columns:
-                edges_from =[bus_index[e] for e in merged_df["hv_bus"].values]
+                edges_from = [bus_index[e] for e in merged_df["hv_bus"].values]
                 merged_df.drop(columns=["hv_bus"], inplace=True)
-                data['bus', 'to', node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()]).to(self.device)
+                data['bus', 'to', node].edge_index = torch.LongTensor([edges_from, merged_df.index.tolist()]).to(
+                    self.device)
 
                 edges_to = [bus_index[e] for e in merged_df["lv_bus"].values]
                 merged_df.drop(columns=["lv_bus"], inplace=True)
-                data[node, 'to', 'bus'].edge_index = torch.LongTensor([merged_df.index.tolist(), edges_to]).to(self.device)
+                data[node, 'to', 'bus'].edge_index = torch.LongTensor([merged_df.index.tolist(), edges_to]).to(
+                    self.device)
 
             if "mv_bus" in merged_df.columns:
                 edges_to2 = [bus_index[e] for e in merged_df["mv_bus"].values]
@@ -277,9 +290,10 @@ class PandaPowerGraph(InMemoryDataset):
                     [merged_df.index.tolist() + merged_df.index.tolist(), edges_to + edges_to2]).to(self.device)
 
             if "bus" in merged_df.columns:
-                edges_ =[bus_index[e] for e in merged_df["bus"].values]
+                edges_ = [bus_index[e] for e in merged_df["bus"].values]
                 merged_df.drop(columns=["bus"], inplace=True)
-                data['bus', 'to', node].edge_index = torch.LongTensor([edges_, merged_df.index.tolist()]).to(self.device)
+                data['bus', 'to', node].edge_index = torch.LongTensor([edges_, merged_df.index.tolist()]).to(
+                    self.device)
 
             dataframes[node] = merged_df
             edges[node] = [edges_, edges_from, edges_to, edges_to2]
@@ -287,7 +301,7 @@ class PandaPowerGraph(InMemoryDataset):
             # node, len(getattr(network,node).columns), len(merged_df.columns))
 
         for k in dataframes.keys():
-            assert len(torch.isnan(data[k].x).int().nonzero())==0
+            assert len(torch.isnan(data[k].x).int().nonzero()) == 0
         for k in dataframes.keys():
-            assert len(torch.isnan(data[k].y).int().nonzero())==0 if hasattr(data[k],"y") else True
+            assert len(torch.isnan(data[k].y).int().nonzero()) == 0 if hasattr(data[k], "y") else True
         return data, edges, dataframes, scalers
