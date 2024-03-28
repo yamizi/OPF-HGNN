@@ -26,6 +26,7 @@ def get_parser():
                         default="cuda",
                         type=str)
 
+    parser.add_argument('-bt', '--batch_train', help="Batch size used in training", type=int, default=256)
     parser.add_argument('-t', '--nb_train', help="Number of graphs used in training", type=int, default=8000)
     parser.add_argument('-v', '--nb_val', help="Number of graphs used in validation", type=int, default=2000)
     parser.add_argument('-s', '--scale', help="Scaling features", type=int, default=0)
