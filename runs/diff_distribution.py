@@ -27,7 +27,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=None,
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
-             max_epochs=500, y_nodes=["gen", "ext_grid", "bus", "line"], train_batch_size=5, val_batch_size=5,
+             max_epochs=500, y_nodes=["gen", "ext_grid", "bus"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64,64],
              base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100, build_db_only=False,
              clamp_boundary=0):
@@ -50,6 +50,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                    "device": device, "train_batch_size": train_batch_size,
                                    "hidden_channels": hidden_channels, "num_samples": num_samples,
                                    "val_batch_size": val_batch_size, "pickle_file": pickle_file,
+                                  "clamp_boundary":clamp_boundary,
                                    "base_lr": base_lr, "cv_ratio": cv_ratio, "cls": cls, "aggr": aggr})
 
     if (os.path.exists(pickle_file)):
@@ -64,7 +65,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     else:
 
         common_params = {"dataset_type": dataset_type, "save_dataframes": save_path, "experiment": experiment,
-                         "scale": scale, "device": device, "opf": opf, "use_ray": use_ray}
+                         "scale": scale, "device": device, "opf": opf, "use_ray": use_ray, "y_nodes":y_nodes}
 
         val_case_name, nb_graphs, mutation_rate, mutations = validation_case
         val_graphs, valid_networks, _, _ = build_dataset(val_case_name, nbsamples=nb_graphs,
@@ -193,17 +194,17 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 if __name__ == "__main__":
     max_epochs = 10
     case = "case1354pegase"
-    case = "case9"
+    case = "case30"
     mutation = "load_relative"
     training_case = [[case, 40, 0.7, [mutation]]]
     validation_case = [case, 10, 0.7, [mutation]]
-    opf = 1
+    opf = 3
     cv_ratio = 0
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
     hash_path = hashlib.md5(hash_path.encode()).hexdigest()
-    #hash_path = hash(hash_path)
+    hash_path = hash(hash_path)
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=5,
              title="generalization load_relative", save_path=f"./output/hp",
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",

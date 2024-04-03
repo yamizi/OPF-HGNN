@@ -46,7 +46,7 @@ def clear_duplicates(train_graphs, train_networks, val_graphs, valid_networks):
 
 
 def build_batch_graph(sample_id, network, mutations, mutation_rate, opf, transforms, scale, dataset_type, hetero,
-                      save_dataframes, case, uniqueid, experiment, batch_size=25, device="cpu"):
+                      save_dataframes, case, uniqueid, experiment, batch_size=25, y_nodes= [], device="cpu"):
     assert opf == 3 and "load_relative" in mutations and "OPF" in dataset_type, "Batch graph generation is only available with matpower and load relative"
 
     graphs = []
@@ -62,7 +62,8 @@ def build_batch_graph(sample_id, network, mutations, mutation_rate, opf, transfo
                 continue
 
             graph_y = PandaPowerGraph(network, include_res=True, opf_as_y=True, preprocess='metapath2vec',
-                                      transform=T.Compose(transforms), scale=scale, hetero=hetero, device=device)
+                                      transform=T.Compose(transforms), scale=scale, hetero=hetero,
+            y_nodes=y_nodes, device=device)
 
             graphs.append((graph_y, network, convergence_times[i]))
 
@@ -78,14 +79,14 @@ def build_batch_graph(sample_id, network, mutations, mutation_rate, opf, transfo
 @ray.remote
 def build_one_graph_ray(sample_id, original_network, mutations, mutation_rate, opf, transforms, scale, dataset_type,
                         hetero,
-                        save_dataframes, case, uniqueid, experiment, device="cpu"):
+                        save_dataframes, case, uniqueid, experiment, y_nodes, device="cpu"):
     return build_one_graph(sample_id, original_network, mutations, mutation_rate, opf, transforms, scale, dataset_type,
                            hetero,
-                           save_dataframes, case, uniqueid, experiment, device)
+                           save_dataframes, case, uniqueid, experiment, y_nodes, device)
 
 
 def build_one_graph(sample_id, network, mutations, mutation_rate, opf, transforms, scale, dataset_type, hetero,
-                    save_dataframes, case, uniqueid, experiment, device="cpu"):
+                    save_dataframes, case, uniqueid, experiment, y_nodes, device="cpu"):
     gc.collect()
     convergence_time = 0
     if mutation_rate > 0:
@@ -152,7 +153,7 @@ def build_one_graph(sample_id, network, mutations, mutation_rate, opf, transform
 
 def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_dataframes="./data", opf=1,
                   mutations=["cost", "load"], mutation_rate=0.7, uniqueid=None, experiment=None, scale=True,
-                  hetero=True, device="cpu", use_ray=True, batch_size=100):
+                  hetero=True, device="cpu", use_ray=True, batch_size=100, y_nodes=["gen", "ext_grid", "bus","line"]):
     print(f"building dataset with {nbsamples} variants, ray {use_ray} and device {device}")
 
     case_method = getattr(pp.networks, case)
@@ -163,7 +164,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
     path = "."
 
     if save_dataframes is not None:
-        graph = PandaPowerGraph(network, scale=scale, hetero=hetero, device=device)
+        graph = PandaPowerGraph(network, scale=scale, hetero=hetero, device=device, y_nodes=y_nodes)
         path = "{}/{}_{}/".format(save_dataframes, case, uniqueid)
         os.makedirs(path, exist_ok=True)
         graph.export(path + "/raw")
@@ -186,7 +187,8 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
             graph_y_network = [
                 build_one_graph_ray.remote(sample_id, original_network, mutations, mutation_rate, opf, transforms,
                                            scale, dataset_type, hetero,
-                                           save_dataframes, case, uniqueid, experiment=None) for sample_id in
+                                           save_dataframes, case, uniqueid, y_nodes=y_nodes,
+                experiment=None) for sample_id in
                 range(nbsamples)]
 
             graph_y_network = ray.get(graph_y_network)
@@ -199,14 +201,14 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
                     step_network = build_batch_graph(sample_id, original_network, mutations, mutation_rate, opf,
                                                      transforms, scale, dataset_type, hetero,
                                                      save_dataframes, case, uniqueid, experiment=experiment,
-                                                     batch_size=batch_size)
+                                                     batch_size=batch_size, y_nodes=y_nodes)
                     graph_y_network = graph_y_network + step_network
                     gc.collect()
             else:
                 graph_y_network = [
                     build_one_graph(sample_id, original_network, mutations, mutation_rate, opf, transforms, scale,
-                                    dataset_type, hetero,
-                                    save_dataframes, case, uniqueid, experiment=experiment) for sample_id in
+                                    dataset_type, hetero, save_dataframes, case, uniqueid,
+                                    y_nodes=y_nodes,experiment=experiment) for sample_id in
                     range(nbsamples)]
 
         graph_y_networks = [g for g in graph_y_network if g[0] is not None]

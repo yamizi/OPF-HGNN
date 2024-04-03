@@ -89,7 +89,7 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
     while True:
         for batch in train_loader:
             out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, node_loss, hetero,
-                                                     clamp_boundary=clamp_boundary)
+                                                     clamp_boundary=(clamp_boundary==1 or clamp_boundary==2))
         lr_scheduler.step()
 
         val_loss_gen = 0
@@ -99,7 +99,7 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
 
         for batch in val_loader:
             last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, node_loss, hetero,
-                                                         clamp_boundary=clamp_boundary == 2)
+                                                         clamp_boundary=(clamp_boundary == 2 or clamp_boundary==3))
 
             val_loss_gen += losses[0].mean()
             val_loss_ext_grid += losses[1].mean() if len(losses) > 1 else 0
@@ -204,7 +204,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         boundary_train_loss = 0
         for batch in train_loader:
             out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, loss_fn, hetero,
-                                                     clamp_boundary=clamp_boundary)
+                                                     clamp_boundary=(clamp_boundary==1 or clamp_boundary==2))
             train_loss += loss
             boundary_train_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
 
@@ -232,7 +232,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         with torch.no_grad():
             for batch in val_loader:
                 last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, loss_fn, hetero,
-                                                             clamp_boundary=clamp_boundary == 2)
+                                                             clamp_boundary=(clamp_boundary==2 or clamp_boundary == 3))
                 val_loss += loss
                 boundary_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
                 val_losses_all.append(losses)
@@ -270,6 +270,11 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                         "val_losses_gen": val_loss_gen, "val_losses_ext_grid": val_loss_ext_grid,
                         "val_losses_bus": val_loss_bus, "val_losses_line": val_loss_line}
             experiment.log_metrics(log_dict, epoch=epoch)
+            logged_metrics = {}
+            for k,v  in out_all[0].items():
+                logged_metrics = {**logged_metrics,**{f"out_{k}_{i}":val.cpu().item() for (i,val) in enumerate(v[0])}}
+            experiment.log_metrics(logged_metrics, epoch=epoch)
+
 
     print("Training over")
     return train_losses, val_losses, (val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line), (
@@ -291,7 +296,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     loss = 0
     losses = []
     boundary_losses = []
-
+    return_output = {}
     if hetero:
         out = model(data.x_dict, data.edge_index_dict)
 
@@ -305,11 +310,12 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
 
             output_mask = data[node].output_mask
 
+            loss_label = loss_f(label, output, output_mask)
+            losses.append(loss_label.cpu().detach().numpy())
             if clamp_boundary:
                 output = clamp_boundaries(data[node].boundaries, output, node, output_mask)
 
-            loss_label = loss_f(label, output, output_mask)
-            losses.append(loss_label.cpu().detach().numpy())
+            return_output[node] = output
             if use_boundary_loss:
                 loss_boundary = boundary_loss(data[node].boundaries, output, node)
                 loss_node = torch.cat([loss_label.reshape((loss_boundary.shape[0], -1)), loss_boundary.unsqueeze(1)], 1)
@@ -323,11 +329,11 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
         if isinstance(model, GNN):
             out = model(data.x, data.edge_index)
             output = out[mask]
-            out = output
+            return_output = output
         else:
             x = data.x.reshape(data.batch_size, -1)
             label = label.reshape(data.batch_size, -1)
-            out = output = model(x)
+            return_output = output = model(x)
         loss_label = loss_f(label, output)
         # loss_boundary = boundary_loss(data[node].boundaries, output)
         loss_node = loss_label  # torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
@@ -338,7 +344,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     loss.backward()
     optimizer.step()
 
-    return out, float(loss), losses, boundary_losses
+    return return_output, float(loss), losses, boundary_losses
 
 
 def timeit(model, data, count=100000, hetero=True):
@@ -366,7 +372,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
     loss = 0
     losses = []
     boundary_losses = []
-
+    return_output = {}
     if hetero:
         out = model(data.x_dict, data.edge_index_dict)
 
@@ -381,11 +387,13 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
                 output = output[mask_node[i]]
 
             output_mask = data[node].output_mask
+            loss_node = loss_f(label, output, output_mask)
+            loss_boundary = boundary_loss(data[node].boundaries, output)
 
             if clamp_boundary:
                 output = clamp_boundaries(data[node].boundaries, output, node, output_mask)
-            loss_node = loss_f(label, output, output_mask)
-            loss_boundary = boundary_loss(data[node].boundaries, output)
+
+            return_output[node] = output
             losses.append(loss_node.cpu().detach().numpy())
             boundary_losses.append(loss_boundary.cpu().detach().numpy())
             loss += loss_node.mean()
@@ -403,11 +411,11 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
             label = label.reshape(data.batch_size, -1)
             output = model(x)
             out = output.reshape(original_shape)
-
+        return_output = out
         loss_node = loss_f(label, output)
         # loss_boundary = boundary_loss(data[node].boundaries, output)
         losses.append(loss_node.cpu().detach().numpy())
         # boundary_losses.append(loss_boundary.cpu().detach().numpy())
         loss += loss_node.mean()
 
-    return out, float(loss), losses, boundary_losses
+    return return_output, float(loss), losses, boundary_losses
