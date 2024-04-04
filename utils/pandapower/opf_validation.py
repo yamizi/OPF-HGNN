@@ -12,6 +12,7 @@ def is_network_valid_ray(i, network, y_nodes, output_nodes, nb_gens, opf):
 
 
 def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf, tolerance=1e-5):
+    net = copy.deepcopy(network)
     valid_min_max = True
     boundaries = {}
     for node in y_nodes:
@@ -25,41 +26,52 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf, tolerance=
             Q_index = 3
 
         if node =="gen" or node=="ext_grid":
-            P = values[:, P_index].reshape((-1, nb_gens[node])).cpu().numpy()
-            Q = values[:, Q_index].reshape((-1, nb_gens[node])).cpu().numpy()
+            P = values[:, P_index].reshape((-1, nb_gens[node])).cpu().numpy() * network.sn_mva
+            Q = values[:, Q_index].reshape((-1, nb_gens[node])).cpu().numpy() * network.sn_mva
 
-            P_max = getattr(network, node)[["max_p_mw"]].values
-            P_max =np.expand_dims(P_max.squeeze(1), 0).repeat(P.shape[0], 0)
-            P_valid_max = P <=P_max
+            P_max = getattr(network, node)["max_p_mw"].values
+            P_max =np.expand_dims(P_max, 0).repeat(P.shape[0], 0)
+            P_valid_max = P[i] <=P_max[i] if i>-1 else P <=P_max
 
-            P_min = getattr(network, node)[["min_p_mw"]].values
-            P_min = np.expand_dims(P_min.squeeze(1), 0).repeat(P.shape[0], 0)
-            P_valid_min = P_min <= P
+            P_min = getattr(network, node)["min_p_mw"].values
+            P_min = np.expand_dims(P_min, 0).repeat(P.shape[0], 0)
+            P_valid_min = P_min[i] <= P[i] if i>-1 else P_min <= P
 
-            Q_max = getattr(network, node)[["max_q_mvar"]].values
-            Q_max = np.expand_dims(Q_max.squeeze(1), 0).repeat(Q.shape[0], 0)
-            Q_valid_max = Q <= Q_max
+            Q_max = getattr(network, node)["max_q_mvar"].values
+            Q_max = np.expand_dims(Q_max, 0).repeat(Q.shape[0], 0)
+            Q_valid_max = Q[i] <= Q_max[i] if i>-1 else Q <= Q_max
 
-            Q_min = getattr(network, node)[["min_q_mvar"]].values
-            Q_min = np.expand_dims(Q_min.squeeze(1), 0).repeat(Q.shape[0], 0)
-            Q_valid_min = Q_min <= Q
+            Q_min = getattr(network, node)["min_q_mvar"].values
+            Q_min = np.expand_dims(Q_min, 0).repeat(Q.shape[0], 0)
+            Q_valid_min = Q_min[i] <= Q[i] if i>-1 else Q_min <= Q
 
             valid_max = P_valid_max & Q_valid_max
             valid_min = P_valid_min & Q_valid_min
 
+            if i>-1:
+                getattr(net, "res_"+node)["q_mvar"] = Q[i]
+                getattr(net, "res_"+node)["p_mw"] = P[i]
+
         elif node == "bus":
             Vm = values[:, 4].reshape((-1, nb_gens[node])).cpu().numpy()
+            Va = values[:, 5].reshape((-1, nb_gens[node])).cpu().numpy()
 
-            Vm_max = getattr(network, node)[["max_vm_pu"]].values
-            Vm_max =np.expand_dims(Vm_max.squeeze(1), 0).repeat(Vm.shape[0], 0)
-            valid_max = Vm <=Vm_max
+            Vm_max = getattr(network, node)["max_vm_pu"].values
+            Vm_max =np.expand_dims(Vm_max, 0).repeat(Vm.shape[0], 0)
+            valid_max = Vm[i] <=Vm_max[i] if i>-1 else Vm <=Vm_max
 
-            Vm_min = getattr(network, node)[["min_vm_pu"]].values
-            Vm_min = np.expand_dims(Vm_min.squeeze(1), 0).repeat(Vm.shape[0], 0)
-            valid_min = Vm_min <= Vm
+            Vm_min = getattr(network, node)["min_vm_pu"].values
+            Vm_min = np.expand_dims(Vm_min, 0).repeat(Vm.shape[0], 0)
+            valid_min = Vm_min[i] <= Vm[i] if i>-1 else Vm_min <= Vm
 
+            if i>-1:
+                getattr(net, "res_"+node)["Vm"] = Vm[i]
+                getattr(net, "res_" + node)["Va"] = Va[i]
 
         elif node == "line":
+            continue
+            # line nodes are not supported anymore in boundaries
+
             max_lines = getattr(network, node)[["max_i_ka"]].values + tolerance
             valid_i_from = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:, 2:3].cpu().numpy() <= max_lines
             valid_i_to = values[i * nb_gens[node]:(i + 1) * nb_gens[node]][:, 3:4].cpu().numpy() <= max_lines
@@ -75,14 +87,10 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf, tolerance=
 
     run_errors = {}
     run_valid = True
-    delta = 10**-5
+
     try:
-        if opf == 2:
-            pp.runpm_ac_opf(copy.deepcopy(network), delta=delta)
-        elif opf == 1:
-            pp.runopp(copy.deepcopy(network), delta=delta)
-        else:
-            pp.runpp(copy.deepcopy(network))
+        #Evaluate if there is valid powerflow when starting using the predicted values
+        pp.runpp(net, init="results")
     except Exception as e:
         run_errors = pp.diagnostic(copy.deepcopy(network), report_style="compact")
         if run_errors != network.original_errors:
