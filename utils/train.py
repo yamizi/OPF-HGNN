@@ -9,21 +9,7 @@ from ray.tune.search.optuna import OptunaSearch
 from torch_geometric.loader import DataLoader
 import pickle
 import psutil, gc
-
-
-def relative_loss(yhat, y):
-    criterion = torch.nn.L1Loss(reduction="none")
-    # criterion = torch.nn.MSELoss(reduction="none")
-    return criterion(yhat, y) / yhat.abs()
-
-
-def node_loss(yhat, y, mask=None):
-    criterion = torch.nn.MSELoss(reduction="none")
-    if mask is None:
-        return criterion(yhat, y[:, :yhat.shape[1]])
-    else:
-        return criterion(yhat.flatten(), y.flatten()[mask.bool().flatten()])
-
+from utils.losses import boundary_loss, node_loss, relative_loss
 
 def clamp_boundaries(boundaries, y, node=None, mask=None):
     if mask is not None:
@@ -43,20 +29,6 @@ def clamp_boundaries(boundaries, y, node=None, mask=None):
     clamped[mask.bool()] = masked_y.flatten()
     return clamped
 
-
-def boundary_loss(boundaries, y, node=""):
-    # minp = boundaries[:,0] # maxp = boundaries[:,1]
-    # minq = boundaries[:,2] # maxq = boundaries[:,3]
-    # minVm = boundaries[:,4] # maxVm = boundaries[:,5]
-    # minVa = boundaries[:,6] # maxVa = boundaries[:,7]
-    # mini_from_ka = boundaries[:,12] # maxi_from_ka = boundaries[:,13]
-    # mini_to_ka = boundaries[:,14] # maxi_to_ka = boundaries[:,15]
-
-    boundary_losses = [torch.max(torch.zeros_like(boundaries[:, 2 * i]), boundaries[:, 2 * i] - y[:, i]) + torch.max(
-        torch.zeros_like(boundaries[:, 2 * i + 1]), y[:, i] - boundaries[:, 2 * i + 1]) for i in range(y.shape[1] - 1)
-                       if torch.isnan(boundaries[:, 2 * i]).sum() == 0]
-    return torch.stack(boundary_losses).sum(0)
-    # return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
 
 def auto_garbage_collect(pct=50.0):
