@@ -38,6 +38,10 @@ def get_parser():
     parser.add_argument('-cb', '--clamp_boundary',
                         help="Clamping output; 1 clamp training only, 2 clamp vboth training and evaluation", type=int,
                         default=1)
+    parser.add_argument('-pl', '--use_physical_loss',
+                        help="Whether to include physical loss; 1 report it only, 2 report it and minimize it", type=int,
+                        default=1)
+
     parser.add_argument('-e', '--epochs', help="Max epochs", type=int, default=500)
     parser.add_argument('-hp', '--num_samples', help="Num samples in hyper-param optimization", type=int, default=250)
 

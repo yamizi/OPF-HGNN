@@ -12,7 +12,7 @@ parser = get_parser()
 def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30", "case118"],
         nb_train=8000, nb_val=2000, dataset_type="y_OPF", device="cuda", scale=0, cv_ratio=0.2,
         opf=1, project_name="test_perf_v4", use_ray=1, epochs=500, num_samples=200, aggr="mean", cls="sage",
-        base_lr=0.1, decay_lr=0.5, hidden_channels=[64, 64], batch_train=256, clamp_boundary=0):
+        base_lr=0.1, decay_lr=0.5, hidden_channels=[64, 64], batch_train=256, clamp_boundary=0, use_physical_loss=1):
     for mutation in mutations:
         for case in cases:
             experiment = init_comet({"case": case, "mutation": mutation}, project_name)
@@ -28,7 +28,8 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
                      experiment=experiment, train_batch_size=batch_train, val_batch_size=512, scale=scale,
                      device=device, opf=opf, use_ray=use_ray, uniqueid=hash_path, max_epochs=epochs, cv_ratio=cv_ratio,
                      num_samples=num_samples, aggr=aggr, cls=cls, base_lr=base_lr, decay_lr=decay_lr,
-                     hidden_channels=hidden_channels, clamp_boundary=clamp_boundary)
+                     hidden_channels=hidden_channels, clamp_boundary=clamp_boundary,
+                     use_physical_loss=use_physical_loss)
 
 
 if __name__ == "__main__":
@@ -41,4 +42,4 @@ if __name__ == "__main__":
         dataset_type=args.dataset_type, opf=args.opf, project_name=comet_name, use_ray=args.ray,
         num_samples=args.num_samples, cv_ratio=args.cv_ratio, aggr=args.aggr, cls=args.cls, decay_lr=args.decay_lr,
         base_lr=args.base_lr, hidden_channels=hidden_channels, batch_train=args.batch_train,
-        clamp_boundary=args.clamp_boundary)
+        clamp_boundary=args.clamp_boundary, use_physical_loss=args.use_physical_loss)

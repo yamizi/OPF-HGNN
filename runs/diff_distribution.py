@@ -30,7 +30,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64,64],
              base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100, build_db_only=False,
-             clamp_boundary=0):
+             clamp_boundary=0, use_physical_loss=1):
+
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -124,7 +125,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                                   plot=plot, num_graphs=num_graphs,
                                                   train_batch_size=train_batch_size,
                                                   val_batch_size=val_batch_size, train_graphs=train_graphs,
-                                                  clamp_boundary=clamp_boundary
+                                                  clamp_boundary=clamp_boundary, use_physical_loss=use_physical_loss
                                                   )
         best_config["num_graphs"] = num_graphs
         [experiment.log_dataframe_profile(df, v) for (df, v) in metrics_dataframe.items()]
@@ -145,9 +146,10 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
     print("Training model with device", next(model.parameters()).device)
 
-    train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, b_val_losses, lr = train_opf(
+    train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, p_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device,
-        base_lr=base_lr, decay_lr=decay_lr, experiment=experiment, clamp_boundary=clamp_boundary)
+        base_lr=base_lr, decay_lr=decay_lr, experiment=experiment, clamp_boundary=clamp_boundary,
+    use_physical_loss=use_physical_loss)
 
     val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
@@ -159,6 +161,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                 "constraint_opf": constrained_networks[:, 0].tolist(),
                 "constraint": constrained_networks.prod(1).tolist()}
     epoch_dict = {"train_losses": train_losses, "val_losses": val_losses,
+                  "b_train_losses":b_train_losses,
                   "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
                   "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
                   "val_losses_bus": val_losses_bus, "val_losses_line": val_losses_line}
@@ -192,7 +195,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
 
 if __name__ == "__main__":
-    max_epochs = 10
+    max_epochs = 100
     case = "case1354pegase"
     case = "case30"
     mutation = "load_relative"
@@ -201,6 +204,7 @@ if __name__ == "__main__":
     opf = 3
     cv_ratio = 0
     clamp_boundary =3
+    use_physical_loss = 2
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
@@ -210,7 +214,7 @@ if __name__ == "__main__":
              title="generalization load_relative", save_path=f"./output/hp",
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
              scale=False, filter=True, opf=opf, use_ray=False, uniqueid=hash_path,
-             cv_ratio=cv_ratio, clamp_boundary= clamp_boundary)
+             cv_ratio=cv_ratio, clamp_boundary= clamp_boundary, use_physical_loss=use_physical_loss)
     plt.show()
     exit()
 

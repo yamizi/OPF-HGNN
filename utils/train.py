@@ -9,7 +9,8 @@ from ray.tune.search.optuna import OptunaSearch
 from torch_geometric.loader import DataLoader
 import pickle
 import psutil, gc
-from utils.losses import boundary_loss, node_loss, relative_loss
+from utils.losses import boundary_loss, node_loss, relative_loss, power_imbalance_loss
+
 
 def clamp_boundaries(boundaries, y, node=None, mask=None):
     if mask is not None:
@@ -30,7 +31,6 @@ def clamp_boundaries(boundaries, y, node=None, mask=None):
     return clamped
 
 
-
 def auto_garbage_collect(pct=50.0):
     """
     auto_garbage_collection - Call the garbage collection if memory used is greater than 80% of total available memory.
@@ -43,7 +43,8 @@ def auto_garbage_collect(pct=50.0):
     return
 
 
-def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, val_loader, clamp_boundary):
+def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, val_loader, clamp_boundary,
+              use_physical_loss=1):
     # print("objective", config)  # ①
 
     model = GNN(hidden_channels=[config.get("hidden_channels") for i in range(config.get("nb_hidden_layers"))],
@@ -61,7 +62,8 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
     while True:
         for batch in train_loader:
             out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, node_loss, hetero,
-                                                     clamp_boundary=(clamp_boundary==1 or clamp_boundary==2))
+                                                     clamp_boundary=(clamp_boundary == 1 or clamp_boundary == 2),
+                                                     use_physical_loss=use_physical_loss)
         lr_scheduler.step()
 
         val_loss_gen = 0
@@ -70,8 +72,10 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
         val_loss_line = 0
 
         for batch in val_loader:
-            last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, node_loss, hetero,
-                                                         clamp_boundary=(clamp_boundary == 2 or clamp_boundary==3))
+            last_out, loss, losses, b_losses, p_losses = eval_step(model, batch, None, y_nodes, node_loss, hetero,
+                                                                   clamp_boundary=(
+                                                                               clamp_boundary == 2 or clamp_boundary == 3),
+                                                                   use_physical_loss=use_physical_loss)
 
             val_loss_gen += losses[0].mean()
             val_loss_ext_grid += losses[1].mean() if len(losses) > 1 else 0
@@ -86,7 +90,7 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
 
 def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_nodes=["gen", "ext_grid", "bus"],
              device="cpu", hetero=True, base_lr=[0.1, 1], plot=False, num_graphs=1000, train_batch_size=32,
-             val_batch_size=32, train_graphs=None, clamp_boundary=0):
+             val_batch_size=32, train_graphs=None, clamp_boundary=0, use_physical_loss=1):
     if train_graphs is None:
         with open(pickle_file, "rb") as pickled:
             print("Loading cross validation dataset from", pickle_file)
@@ -123,7 +127,8 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
     tuner = tune.Tuner(  # ③
         tune.with_parameters(objective, graph=ray.put(graph), device=device, max_epochs=max_epochs, y_nodes=y_nodes,
                              hetero=hetero, train_loader=ray.put(training_loader),
-                             val_loader=ray.put(validation_loader), clamp_boundary=clamp_boundary),
+                             val_loader=ray.put(validation_loader), clamp_boundary=clamp_boundary,
+                            use_physical_loss=use_physical_loss),
         tune_config=tune.TuneConfig(
             search_alg=algo,
             num_samples=num_samples,
@@ -150,7 +155,8 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
 
 
 def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "ext_grid"], log_every=10,
-              device="cpu", decay_lr=0.3, hetero=True, base_lr=0.01, experiment=None, clamp_boundary=0):
+              device="cpu", decay_lr=0.3, hetero=True, base_lr=0.01, experiment=None, clamp_boundary=0,
+              use_physical_loss=1):
     optimizer = torch.optim.Adam(model.parameters(), lr=base_lr)
     milestones = [max_epochs // 2, (max_epochs * 3) // 4, (max_epochs * 9) // 10]
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=decay_lr)
@@ -160,7 +166,9 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
     train_losses = []
     boundary_train_losses = []
+    physical_train_losses = []
     boundary_val_losses = []
+    physical_val_losses = []
     val_losses = []
     val_losses_bus = []
     val_losses_line = []
@@ -174,26 +182,35 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
         train_loss = 0
         boundary_train_loss = 0
+        physical_train_loss = 0
+
         for batch in train_loader:
-            out, loss, losses, b_losses = train_step(model, optimizer, batch, None, y_nodes, loss_fn, hetero,
-                                                     clamp_boundary=(clamp_boundary==1 or clamp_boundary==2))
+            out, loss, losses, b_losses, p_losses = train_step(model, optimizer, batch, None, y_nodes, loss_fn, hetero,
+                                                               clamp_boundary=(
+                                                                           clamp_boundary == 1 or clamp_boundary == 2),
+                                                               use_physical_loss=use_physical_loss)
             train_loss += loss
             boundary_train_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
+            physical_train_loss += np.concatenate(p_losses, 0).mean() if len(p_losses) else 0
 
         lr_scheduler.step()
         train_loss /= len(train_loader)
         boundary_train_loss /= len(train_loader)
+        physical_train_loss /= len(train_loader)
 
         if epoch % log_every == 0:
             print("epoch", epoch)
             print("training loss", train_loss)
             print("boundary loss", boundary_train_loss)
+            print("physical loss", physical_train_loss)
 
         train_losses.append(train_loss)
         boundary_train_losses.append(boundary_train_loss)
+        physical_train_losses.append(physical_train_loss)
 
         val_loss = 0
-        boundary_loss = 0
+        boundary_loss_val = 0
+        physical_loss_val = 0
         val_loss_gen = 0
         val_loss_ext_grid = 0
         val_loss_bus = 0
@@ -203,10 +220,13 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         out_all = []
         with torch.no_grad():
             for batch in val_loader:
-                last_out, loss, losses, b_losses = eval_step(model, batch, None, y_nodes, loss_fn, hetero,
-                                                             clamp_boundary=(clamp_boundary==2 or clamp_boundary == 3))
+                last_out, loss, losses, b_losses, p_losses = eval_step(model, batch, None, y_nodes, loss_fn, hetero,
+                                                                       clamp_boundary=(
+                                                                                   clamp_boundary == 2 or clamp_boundary == 3),
+                                                                       use_physical_loss=use_physical_loss)
                 val_loss += loss
-                boundary_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
+                boundary_loss_val += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
+                physical_loss_val += np.concatenate(b_losses, 0).mean() if len(p_losses) else 0
                 val_losses_all.append(losses)
                 out_all.append(last_out)
                 val_loss_gen += losses[0].mean()
@@ -215,13 +235,15 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                 val_loss_line += losses[3].mean() if len(losses) > 3 else 0
 
         val_loss /= len(val_loader)
-        boundary_loss /= len(val_loader)
+        boundary_loss_val /= len(val_loader)
+        physical_loss_val /= len(val_loader)
         if epoch % log_every == 0:
             print("validation loss", val_loss)
-            print("boundary loss", boundary_loss)
+            print("boundary loss", boundary_loss_val)
 
         val_losses.append(val_loss)
-        boundary_val_losses.append(boundary_loss)
+        boundary_val_losses.append(boundary_loss_val)
+        physical_train_losses.append(physical_loss_val)
 
         val_loss_gen /= len(val_loader)
         val_losses_gen.append(val_loss_gen)
@@ -237,28 +259,28 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
         if experiment is not None:
             log_dict = {"train_losses": train_loss,
-                        "val_losses": val_loss,
-                        "b_train_losses": boundary_train_loss, "b_val_losses": boundary_loss, "learning_rate": lr,
+                        "val_losses": val_loss,"p_train_losses":physical_train_loss,"p_val_losses":physical_loss_val,
+                        "b_train_losses": boundary_train_loss, "b_val_losses": boundary_loss_val, "learning_rate": lr,
                         "val_losses_gen": val_loss_gen, "val_losses_ext_grid": val_loss_ext_grid,
                         "val_losses_bus": val_loss_bus, "val_losses_line": val_loss_line}
             experiment.log_metrics(log_dict, epoch=epoch)
             logged_metrics = {}
-            for k,v  in out_all[0].items():
-                logged_metrics = {**logged_metrics,**{f"out_{k}_{i}":val.cpu().item() for (i,val) in enumerate(v[0])}}
+            for k, v in out_all[0].items():
+                logged_metrics = {**logged_metrics,
+                                  **{f"out_{k}_{i}": val.cpu().item() for (i, val) in enumerate(v[0])}}
             experiment.log_metrics(logged_metrics, epoch=epoch)
-
 
     print("Training over")
     return train_losses, val_losses, (val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line), (
-        out_all, val_losses_all), boundary_train_losses, boundary_val_losses, learning_rate
+        out_all, val_losses_all), boundary_train_losses, physical_train_losses, boundary_val_losses, learning_rate
 
 
 def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True,
-               use_boundary_loss=True, clamp_boundary=True):
+               use_boundary_loss=True, clamp_boundary=True, use_physical_loss=1):
     model.train()
     optimizer.zero_grad()
     if loss_f is None:
-        loss_f = F.cross_entropy
+        loss_f = F.mse_loss
 
     if isinstance(feature_node, str):
         feature_node = [feature_node]
@@ -268,6 +290,8 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     loss = 0
     losses = []
     boundary_losses = []
+    physical_losses = []
+
     return_output = {}
     if hetero:
         out = model(data.x_dict, data.edge_index_dict)
@@ -294,7 +318,15 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
                 boundary_losses.append(loss_boundary.cpu().detach().numpy())
             else:
                 loss_node = loss_label
+
             loss += loss_node.mean()
+
+            if use_physical_loss:
+                physical_loss = power_imbalance_loss(data, out)
+                physical_losses.append(physical_loss.sum(1).detach().numpy())
+                if use_physical_loss == 2:
+                    loss += physical_loss.sum()
+
     else:
         mask = ~torch.isnan(data.y).any(1)
         label = data.y[mask]
@@ -316,7 +348,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     loss.backward()
     optimizer.step()
 
-    return return_output, float(loss), losses, boundary_losses
+    return return_output, float(loss), losses, boundary_losses, physical_losses
 
 
 def timeit(model, data, count=100000, hetero=True):
@@ -332,7 +364,8 @@ def timeit(model, data, count=100000, hetero=True):
     print(total)
 
 
-def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True, clamp_boundary=0):
+def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True, clamp_boundary=0,
+              use_physical_loss=1):
     model.eval()
     if loss_f is None:
         loss_f = F.cross_entropy
@@ -344,6 +377,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
     loss = 0
     losses = []
     boundary_losses = []
+    physical_losses = []
     return_output = {}
     if hetero:
         out = model(data.x_dict, data.edge_index_dict)
@@ -369,6 +403,11 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
             losses.append(loss_node.cpu().detach().numpy())
             boundary_losses.append(loss_boundary.cpu().detach().numpy())
             loss += loss_node.mean()
+
+            if use_physical_loss:
+                physical_loss = power_imbalance_loss(data, out)
+                physical_losses.append(physical_loss.sum().cpu().detach().numpy())
+
     else:
         mask = ~torch.isnan(data.y).any(1)
         label = data.y[mask]
@@ -390,4 +429,4 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
         # boundary_losses.append(loss_boundary.cpu().detach().numpy())
         loss += loss_node.mean()
 
-    return return_output, float(loss), losses, boundary_losses
+    return return_output, float(loss), losses, boundary_losses, physical_losses
