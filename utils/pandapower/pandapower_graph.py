@@ -313,4 +313,6 @@ class PandaPowerGraph(InMemoryDataset):
             assert len(torch.isnan(data[k].x).int().nonzero()) == 0
         for k in dataframes.keys():
             assert len(torch.isnan(data[k].y).int().nonzero()) == 0 if hasattr(data[k], "y") else True
+
+        data.sn_mva = network.sn_mva
         return data, edges, dataframes, scalers

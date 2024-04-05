@@ -74,7 +74,7 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
             convergence_time = octave.pull("et")
 
             pp.runpp(network)
-            #network.res_bus[["p_mw", "q_mvar"]] = mpc.bus[:, 2:4]
+            network.res_bus[["p_mw", "q_mvar"]] = mpc.bus[:, 2:4]
             network.res_bus[["vm_pu","va_degree"]] = mpc.bus[:,7:9]
             generators = mpc.gen[:,0:6]
             ext_grid_bus = network.ext_grid.bus.values[0]

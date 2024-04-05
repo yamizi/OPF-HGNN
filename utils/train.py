@@ -326,6 +326,8 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
                 physical_losses.append(physical_loss.sum(1).detach().numpy())
                 if use_physical_loss == 2:
                     loss += physical_loss.sum()
+                elif use_physical_loss == 3:
+                    loss = physical_loss.sum()
 
     else:
         mask = ~torch.isnan(data.y).any(1)

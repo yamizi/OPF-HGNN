@@ -51,7 +51,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                    "device": device, "train_batch_size": train_batch_size,
                                    "hidden_channels": hidden_channels, "num_samples": num_samples,
                                    "val_batch_size": val_batch_size, "pickle_file": pickle_file,
-                                  "clamp_boundary":clamp_boundary,
+                                  "clamp_boundary":clamp_boundary,"use_physical_loss":use_physical_loss,
                                    "base_lr": base_lr, "cv_ratio": cv_ratio, "cls": cls, "aggr": aggr})
 
     if (os.path.exists(pickle_file)):
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     opf = 3
     cv_ratio = 0
     clamp_boundary =3
-    use_physical_loss = 2
+    use_physical_loss = 3
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"

@@ -55,6 +55,15 @@ def power_imbalance_loss(data, out):
     bus_to_line_list = list(zip(*data.edge_index_dict.get(('bus', 'to', 'line')).cpu().tolist()))
     line_to_bus_list = list(zip(*data.edge_index_dict.get(('line', 'to', 'bus')).cpu().tolist()))
 
+    bus_to_gen_index, gen_index = data.edge_index_dict.get(('bus', 'to', 'gen')).cpu().tolist()
+    bus_to_ext_index, ext_index = data.edge_index_dict.get(('bus', 'to', 'ext_grid')).cpu().tolist()
+
+    predicted_gen_P = data.sn_mva[0] * out.get("gen")[gen_index,0]
+    predicted_gen_Q = data.sn_mva[0] * out.get("gen")[gen_index, 1]
+
+    predicted_ext_P = data.sn_mva[0] * out.get("ext_grid")[ext_index, 2]
+    predicted_ext_Q = data.sn_mva[0] * out.get("ext_grid")[ext_index, 3]
+
     # line features are: 'std_type', 'length_km', 'r_ohm_per_km', 'x_ohm_per_km', 'c_nf_per_km','g_us_per_km'
     line_features = data.x_dict.get("line")[:, :6]
     # bus features are : 'vn_kv', 'in_service', 'min_vm_pu', 'max_vm_pu', 'p_mw', 'q_mvar'
@@ -85,8 +94,18 @@ def power_imbalance_loss(data, out):
     Qji = g_ij * (f_i * e_j - e_i * f_j) + b_ij * (-e_i * e_j + e_i ** 2 - f_i * f_j + f_i ** 2)
 
     #### True values for buses
-    Pji_true = bus_features[i, 0]
-    Qji_true = bus_features[i, 1]
+    bus_generator = torch.zeros_like(bus_features)
+    bus_generator[bus_to_gen_index, 0] = predicted_gen_P
+    bus_generator[bus_to_gen_index, 1] = predicted_gen_Q
+
+    bus_ext = torch.zeros_like(bus_features)
+    bus_ext[bus_to_ext_index, 0] = predicted_ext_P
+    bus_ext[bus_to_ext_index, 1] = predicted_ext_Q
+
+    bus_true = bus_features + bus_generator + bus_ext
+    Pji_true = bus_true[i, 0]
+    Qji_true = bus_true[i, 1]
+
 
     ####### my (incomplete) method #######
     # ym_ij = torch.sqrt(g_ij**2+b_ij**2)
