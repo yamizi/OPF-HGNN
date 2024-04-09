@@ -204,7 +204,7 @@ if __name__ == "__main__":
     opf = 3
     cv_ratio = 0
     clamp_boundary =3
-    use_physical_loss = 3
+    use_physical_loss = 0
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"

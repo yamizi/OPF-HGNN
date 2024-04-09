@@ -25,7 +25,7 @@ def boundary_loss(boundaries, y, node=""):
     # mini_to_ka = boundaries[:,14] # maxi_to_ka = boundaries[:,15]
 
     boundary_losses = [torch.max(torch.zeros_like(boundaries[:, 2 * i]), boundaries[:, 2 * i] - y[:, i]) + torch.max(
-        torch.zeros_like(boundaries[:, 2 * i + 1]), y[:, i] - boundaries[:, 2 * i + 1]) for i in range(y.shape[1] - 1)
+        torch.zeros_like(boundaries[:, 2 * i + 1]), y[:, i] - boundaries[:, 2 * i + 1]) for i in range(y.shape[1])
                        if torch.isnan(boundaries[:, 2 * i]).sum() == 0]
     return torch.stack(boundary_losses).sum(0)
     # return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)

@@ -18,10 +18,10 @@ def clamp_boundaries(boundaries, y, node=None, mask=None):
     else:
         masked_y = y
 
-    min_boundaries = torch.stack([boundaries[:, 2 * i] for i in range(y.shape[1] - 1)
+    min_boundaries = torch.stack([boundaries[:, 2 * i] for i in range(y.shape[1])
                                   if torch.isnan(boundaries[:, 2 * i]).sum() == 0], 1)
 
-    max_boundaries = torch.stack([boundaries[:, 2 * i + 1] for i in range(y.shape[1] - 1)
+    max_boundaries = torch.stack([boundaries[:, 2 * i + 1] for i in range(y.shape[1])
                                   if torch.isnan(boundaries[:, 2 * i + 1]).sum() == 0], 1)
 
     masked_y = torch.clamp(masked_y, min_boundaries, max_boundaries)
@@ -313,7 +313,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
 
             return_output[node] = output
             if use_boundary_loss:
-                loss_boundary = boundary_loss(data[node].boundaries, output, node)
+                loss_boundary = boundary_loss(data[node].boundaries, output, node=node)
                 loss_node = torch.cat([loss_label.reshape((loss_boundary.shape[0], -1)), loss_boundary.unsqueeze(1)], 1)
                 boundary_losses.append(loss_boundary.cpu().detach().numpy())
             else:
@@ -396,12 +396,12 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
 
             output_mask = data[node].output_mask
             loss_node = loss_f(label, output, output_mask)
-            loss_boundary = boundary_loss(data[node].boundaries, output)
+            loss_boundary = boundary_loss(data[node].boundaries, output,node=node)
 
             if clamp_boundary:
-                output = clamp_boundaries(data[node].boundaries, output, node, output_mask)
-
-            return_output[node] = output
+                return_output[node] = clamp_boundaries(data[node].boundaries, output, node, output_mask)
+            else:
+                return_output[node] = output
             losses.append(loss_node.cpu().detach().numpy())
             boundary_losses.append(loss_boundary.cpu().detach().numpy())
             loss += loss_node.mean()
