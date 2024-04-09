@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 import json
 from copy import deepcopy
-from utils.pandapower.normalization import normalizePQ
+from utils.pandapower.normalization import normalizeCols
 
 INF_VAL = 10 ** 5
 
@@ -191,7 +191,7 @@ class PandaPowerGraph(InMemoryDataset):
             if len(merged_df):
                 boundaries = np.nan * np.ones((len(merged_df), self.num_outputs * 2)) # to support min and max values
                 mask = np.zeros((len(merged_df), self.num_outputs))
-                merged_df = normalizePQ(merged_df, columns=["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"],
+                merged_df = normalizeCols(merged_df, columns=["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"],
                                         min_val=0, max_val=network.sn_mva)
 
                 if node == "ext_grid" or node == "gen":
@@ -215,11 +215,18 @@ class PandaPowerGraph(InMemoryDataset):
                     drop_y = y
                 elif node in ["bus"]:
                     y = ["vm_pu", "va_degree"]
+
+                    # For Vm
                     boundaries_conservative = merged_df[["min_vm_pu", "max_vm_pu"]].values
                     boundaries_conservative = boundaries_conservative + np.repeat([[10 * boundary_tolerance,
                                                                                     -10 * boundary_tolerance]],
                                                                                   len(merged_df), 0)
                     boundaries[:, 8:10] = boundaries_conservative
+
+                    # For Va
+                    boundaries[:,10] = -1 + 10 * boundary_tolerance
+                    boundaries[:, 11] = 1 - 10 * boundary_tolerance
+
                     mask[:, 4:6] = 1
                     drop_y = y
                 elif node in ["line"]:
@@ -260,7 +267,12 @@ class PandaPowerGraph(InMemoryDataset):
 
             scaler = None  # StandardScaler()
             merged_df = merged_df.replace([np.inf, -np.inf], [-INF_VAL, INF_VAL])
-            merged_df = normalizePQ(merged_df, min_val=0, max_val=network.sn_mva)
+            #normalize PQ
+            merged_df = normalizeCols(merged_df, min_val=0, max_val=network.sn_mva)
+
+            # Normalize angles
+            merged_df = normalizeCols(merged_df,columns="va_degree", min_val=-50, max_val=50)
+
             one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
             if scale and scaler is not None:
                 one_hot = scaler.fit_transform(one_hot)

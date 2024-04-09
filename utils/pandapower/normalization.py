@@ -4,7 +4,7 @@ MIN_PQ = -200
 MAX_PQ = 1800
 
 
-def normalizePQ(dataset, case="", columns=["p_mw", "q_mvar"], min_val=MIN_PQ, max_val=MAX_PQ):
+def normalizeCols(dataset, case="", columns=["p_mw", "q_mvar"], min_val=MIN_PQ, max_val=MAX_PQ):
     dts = []
     columns_to_affect = [e for e in columns if e in dataset.columns]
     if len(columns_to_affect) == 0:
