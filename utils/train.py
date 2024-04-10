@@ -76,10 +76,10 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
                   y_nodes, node_loss, hetero, clamp_boundary=(clamp_boundary == 2 or clamp_boundary == 3),
                    neighboorhood=neighboorhood, use_physical_loss=use_physical_loss)
 
-            val_loss_gen += losses[0].mean()
-            val_loss_ext_grid += losses[1].mean() if len(losses) > 1 else 0
-            val_loss_bus += losses[2].mean() if len(losses) > 2 else 0
-            val_loss_line += losses[3].mean() if len(losses) > 3 else 0
+            val_loss_gen += losses[0].sum()
+            val_loss_ext_grid += losses[1].sum() if len(losses) > 1 else 0
+            val_loss_bus += losses[2].sum() if len(losses) > 2 else 0
+            val_loss_line += losses[3].sum() if len(losses) > 3 else 0
 
         auto_garbage_collect()
 
@@ -190,8 +190,8 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                   use_physical_loss=use_physical_loss, neighboorhood=neighboorhood, epoch=epoch,batch_id=batch_id,
                                                                                       weighting=weighting)
             train_loss += loss
-            boundary_train_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
-            physical_train_loss += np.concatenate(p_losses, 0).mean() if len(p_losses) else 0
+            boundary_train_loss += np.concatenate(b_losses, 0).sum() if len(b_losses) else 0
+            physical_train_loss += np.concatenate(p_losses, 0).sum() if len(p_losses) else 0
 
         lr_scheduler.step()
         train_loss /= len(train_loader)
@@ -225,15 +225,15 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                   y_nodes, loss_fn, hetero, clamp_boundary=(clamp_boundary == 2 or clamp_boundary == 3),
                    use_physical_loss=use_physical_loss,neighboorhood=neighboorhood, epoch=epoch, batch_id=batch_id)
                 val_loss += loss
-                boundary_loss_val += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
-                physical_loss_val += np.concatenate(b_losses, 0).mean() if len(p_losses) else 0
+                boundary_loss_val += np.concatenate(b_losses, 0).sum() if len(b_losses) else 0
+                physical_loss_val += np.concatenate(b_losses, 0).sum() if len(p_losses) else 0
                 val_losses_all.append(losses)
                 out_all.append(last_out)
                 labels_all.append(last_label)
-                val_loss_gen += losses[0].mean()
-                val_loss_ext_grid += losses[1].mean() if len(losses) > 1 else 0
-                val_loss_bus += losses[2].mean() if len(losses) > 2 else 0
-                val_loss_line += losses[3].mean() if len(losses) > 3 else 0
+                val_loss_gen += losses[0].sum()
+                val_loss_ext_grid += losses[1].sum() if len(losses) > 1 else 0
+                val_loss_bus += losses[2].sum() if len(losses) > 2 else 0
+                val_loss_line += losses[3].sum() if len(losses) > 3 else 0
 
         val_loss /= len(val_loader)
         boundary_loss_val /= len(val_loader)
@@ -335,7 +335,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
                 loss_node = loss_label
 
             weight_node = np.sum(list(total_nodes.values()))/total_nodes.get(node) if weighting=="relative" else 1
-            loss += weight_node * loss_node.mean()
+            loss += weight_node * loss_node.sum()
 
             if use_physical_loss and node=="bus":
                 physical_loss, neighboorhood = power_imbalance_loss(data, out, neighboorhood)
@@ -361,7 +361,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
         loss_node = loss_label  # torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
         losses.append(loss_label.cpu().detach().numpy())
         # boundary_losses.append(loss_boundary.cpu().detach().numpy())
-        loss += loss_node.mean()
+        loss += loss_node.sum()
 
     loss.backward()
     optimizer.step()
@@ -449,6 +449,6 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
         # loss_boundary = boundary_loss(data[node].boundaries, output)
         losses.append(loss_node.cpu().detach().numpy())
         # boundary_losses.append(loss_boundary.cpu().detach().numpy())
-        loss += loss_node.mean()
+        loss += loss_node.sum()
 
     return return_output, return_label, float(loss), losses, boundary_losses, physical_losses, neighboorhood
