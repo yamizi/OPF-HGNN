@@ -180,7 +180,7 @@ def build_dataset(case="case9", nbsamples=20, dataset_type="y_OPF", save_datafra
 
     while len(graphs) < nbsamples and sample_id < nbsamples * 100:
         # stop if we mutated more than 100 times the size needed without finding enough valid examples
-        print("loop sample id", sample_id, " total graphs", len(graphs))
+        print("loop valid sample id", sample_id, " total graphs", len(graphs))
         sample_id = sample_id + nbsamples
 
         if use_ray:

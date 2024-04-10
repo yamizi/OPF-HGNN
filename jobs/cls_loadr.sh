@@ -2,7 +2,7 @@ ulimit -n 8192
 export CUDA_VISIBLE_DEVICES=0
 DEVICE="cpu"
 SCALE=0
-PROJECT="test_perf_opf3V3"
+PROJECT="test_perf_opf3V4"
 DATASET="y_OPF"
 RAY=0
 HP=10
