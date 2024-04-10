@@ -9,12 +9,13 @@ def relative_loss(yhat, y):
 
 
 def node_loss(yhat, y, mask=None):
-    criterion = torch.nn.MSELoss(reduction="none")
+    criterions = [torch.nn.MSELoss(reduction="none"),torch.nn.L1Loss(reduction="none")]
     if mask is None:
-        return criterion(yhat, y[:, :yhat.shape[1]])
+        losses = [criterion(yhat, y[:, :yhat.shape[1]]).unsqueeze(0) for criterion in criterions]
     else:
-        return criterion(yhat.flatten(), y.flatten()[mask.bool().flatten()])
+        losses = [criterion(yhat.flatten(), y.flatten()[mask.bool().flatten()]).unsqueeze(0) for criterion in criterions]
 
+    return torch.cat(losses).sum(0)
 
 def boundary_loss(boundaries, y, node=""):
     # minp = boundaries[:,0] # maxp = boundaries[:,1]
