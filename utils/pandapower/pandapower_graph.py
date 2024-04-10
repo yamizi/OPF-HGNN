@@ -24,7 +24,7 @@ class PandaPowerGraph(InMemoryDataset):
                  transform: Optional[Callable] = None, scale=True,
                  pre_transform: Optional[Callable] = None, device="cpu",
                  include_res: bool = True, opf_as_y: bool = True, hetero=True,
-                 y_nodes=["gen", "ext_grid", "bus","line"]):
+                 y_nodes=["gen", "ext_grid", "bus", "line"]):
 
         preprocess = None if preprocess is None else preprocess.lower()
         self.preprocess = preprocess
@@ -59,12 +59,13 @@ class PandaPowerGraph(InMemoryDataset):
 
     @property
     def num_outputs(self) -> int:
-        return len(self.output_nodes)  # ["p_mw", "q_mvar", "vm_pu", "va_degree", "pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
+        return len(
+            self.output_nodes)  # ["p_mw", "q_mvar", "vm_pu", "va_degree", "pl_mw", "ql_mvar","i_from_ka", "i_to_ka"]
 
     @property
     def output_nodes(self) -> [str]:
-        nodes_features = {"bus":["vm_pu", "va_degree"], "gen":["p_mw", "q_mvar"], "ext_grid":["p_mw", "q_mvar"]}
-        return [a for e in self.y_nodes for a in nodes_features.get(e,[]) ]
+        nodes_features = {"bus": ["vm_pu", "va_degree"], "gen": ["p_mw", "q_mvar"], "ext_grid": ["p_mw", "q_mvar"]}
+        return [a for e in self.y_nodes for a in nodes_features.get(e, [])]
 
     @property
     def total_output_nodes(self) -> [str]:
@@ -189,10 +190,10 @@ class PandaPowerGraph(InMemoryDataset):
                 right_index=True)
 
             if len(merged_df):
-                boundaries = np.nan * np.ones((len(merged_df), self.num_outputs * 2)) # to support min and max values
+                boundaries = np.nan * np.ones((len(merged_df), self.num_outputs * 2))  # to support min and max values
                 mask = np.zeros((len(merged_df), self.num_outputs))
                 merged_df = normalizeCols(merged_df, columns=["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"],
-                                        min_val=0, max_val=network.sn_mva)
+                                          min_val=0, max_val=network.sn_mva)
 
                 if node == "ext_grid" or node == "gen":
                     y = ["p_mw", "q_mvar"]
@@ -200,7 +201,7 @@ class PandaPowerGraph(InMemoryDataset):
                         start_index = 0
                     else:
                         start_index = 1
-                    mask[:, start_index*2:(start_index+1)*2] = 1
+                    mask[:, start_index * 2:(start_index + 1) * 2] = 1
                     drop_y = y
                     # we enforce boundaries slightly tighter than original boundaries in the loss estimation
                     boundaries_conservative = merged_df[["min_p_mw", "max_p_mw", "min_q_mvar", "max_q_mvar"]].values
@@ -209,7 +210,7 @@ class PandaPowerGraph(InMemoryDataset):
                                                                                     -10 * boundary_tolerance,
                                                                                     -10 * boundary_tolerance]],
                                                                                   len(merged_df), 0)
-                    boundaries[:, start_index*4:(start_index+1)*4] = boundaries_conservative
+                    boundaries[:, start_index * 4:(start_index + 1) * 4] = boundaries_conservative
                 elif node == "sgen":
                     y = ["p_mw", "q_mvar"]
                     drop_y = y
@@ -224,7 +225,7 @@ class PandaPowerGraph(InMemoryDataset):
                     boundaries[:, 8:10] = boundaries_conservative
 
                     # For Va
-                    boundaries[:,10] = -1 + 10 * boundary_tolerance
+                    boundaries[:, 10] = -1 + 10 * boundary_tolerance
                     boundaries[:, 11] = 1 - 10 * boundary_tolerance
 
                     mask[:, 4:6] = 1
@@ -267,11 +268,11 @@ class PandaPowerGraph(InMemoryDataset):
 
             scaler = None  # StandardScaler()
             merged_df = merged_df.replace([np.inf, -np.inf], [-INF_VAL, INF_VAL])
-            #normalize PQ
+            # normalize PQ
             merged_df = normalizeCols(merged_df, min_val=0, max_val=network.sn_mva)
 
             # Normalize angles
-            merged_df = normalizeCols(merged_df,columns="va_degree", min_val=-50, max_val=50)
+            merged_df = normalizeCols(merged_df, columns="va_degree", min_val=-50, max_val=50)
 
             one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
             if scale and scaler is not None:

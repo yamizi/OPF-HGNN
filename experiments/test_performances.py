@@ -13,7 +13,7 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
         nb_train=8000, nb_val=2000, dataset_type="y_OPF", device="cuda", scale=0, cv_ratio=0.2,
         opf=1, project_name="test_perf_v4", use_ray=1, epochs=500, num_samples=200, aggr="mean", cls="sage",
         base_lr=0.1, decay_lr=0.5, hidden_channels=[64, 64], batch_train=256, clamp_boundary=0, use_physical_loss=1
-        ,weighting="relative"):
+        , weighting="relative"):
     for mutation in mutations:
         for case in cases:
             experiment = init_comet({"case": case, "mutation": mutation}, project_name)

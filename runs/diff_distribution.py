@@ -20,18 +20,17 @@ import json
 import pickle
 
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=None,
              validation_case=["case9", 64, 0.7, ["cost", "load"]], plot=True,
              save_path="./output", title="", dataset_type="y_OPF", scale=False,
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus"], train_batch_size=5, val_batch_size=5,
-             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64,64],
+             device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64, 64],
              base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100, build_db_only=False,
              clamp_boundary=0, use_physical_loss=1, weighting="relative"):
-
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
@@ -51,9 +50,9 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                    "device": device, "train_batch_size": train_batch_size,
                                    "hidden_channels": hidden_channels, "num_samples": num_samples,
                                    "val_batch_size": val_batch_size, "pickle_file": pickle_file,
-                                  "clamp_boundary":clamp_boundary,"use_physical_loss":use_physical_loss,
+                                   "clamp_boundary": clamp_boundary, "use_physical_loss": use_physical_loss,
                                    "base_lr": base_lr, "cv_ratio": cv_ratio, "cls": cls, "aggr": aggr,
-                                   "weighting":weighting,"losses":"mse+l1"})
+                                   "weighting": weighting, "losses": "mse+l1"})
 
     if (os.path.exists(pickle_file)):
         with open(pickle_file, "rb") as pickled:
@@ -67,7 +66,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     else:
 
         common_params = {"dataset_type": dataset_type, "save_dataframes": save_path, "experiment": experiment,
-                         "scale": scale, "device": device, "opf": opf, "use_ray": use_ray, "y_nodes":y_nodes}
+                         "scale": scale, "device": device, "opf": opf, "use_ray": use_ray, "y_nodes": y_nodes}
 
         val_case_name, nb_graphs, mutation_rate, mutations = validation_case
         val_graphs, valid_networks, _, _ = build_dataset(val_case_name, nbsamples=nb_graphs,
@@ -78,7 +77,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         experiment.log_metric("nb_valid_graphs", len(val_graphs))
 
         train_graphs = []
-        train_networks = {"original": [], "mutants": [], "convergence_time":[]}
+        train_networks = {"original": [], "mutants": [], "convergence_time": []}
         nb_graphs = 0
         train_case_name = ""
         for training_case in training_cases:
@@ -100,10 +99,12 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
         print("Correct training graphs {}/{}".format(len(train_graphs), nb_graphs))
         experiment.log_metric("nb_train_graphs", len(train_graphs))
-        [experiment.log_metric("convergence_train_graphs", e,i) for (i,e) in enumerate(train_networks["convergence_time"])]
+        [experiment.log_metric("convergence_train_graphs", e, i) for (i, e) in
+         enumerate(train_networks["convergence_time"])]
 
         with(open(pickle_file, "ab") as f):
-            pickle.dump({"train_graphs": [e.to("cpu") for e in train_graphs], "train_networks": train_networks, "val_graphs": val_graphs,
+            pickle.dump({"train_graphs": [e.to("cpu") for e in train_graphs], "train_networks": train_networks,
+                         "val_graphs": val_graphs,
                          "valid_networks": valid_networks}, f)
 
     if build_db_only:
@@ -137,8 +138,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
         cls = best_config["cls"]
         aggr = best_config["aggr"]
 
-
-    experiment.log_parameters({"cls":cls,"hidden_channels":hidden_channels,"aggr":aggr})
+    experiment.log_parameters({"cls": cls, "hidden_channels": hidden_channels, "aggr": aggr})
 
     model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr, cls=cls)
     model = to_hetero(model, data.metadata(), aggr='sum').to(device)
@@ -150,7 +150,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, p_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device,
         base_lr=base_lr, decay_lr=decay_lr, experiment=experiment, clamp_boundary=clamp_boundary,
-    use_physical_loss=use_physical_loss, weighting=weighting)
+        use_physical_loss=use_physical_loss, weighting=weighting)
 
     val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
@@ -162,7 +162,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                 "constraint_opf": constrained_networks[:, 0].tolist(),
                 "constraint": constrained_networks.prod(1).tolist()}
     epoch_dict = {"train_losses": train_losses, "val_losses": val_losses,
-                  "b_train_losses":b_train_losses,
+                  "b_train_losses": b_train_losses,
                   "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
                   "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
                   "val_losses_bus": val_losses_bus, "val_losses_line": val_losses_line}
@@ -204,19 +204,19 @@ if __name__ == "__main__":
     validation_case = [case, 10, 0.7, [mutation]]
     opf = 3
     cv_ratio = 0
-    clamp_boundary =3
+    clamp_boundary = 3
     use_physical_loss = 1
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
     hash_path = hashlib.md5(hash_path.encode()).hexdigest()
-    #hash_path = hash(hash_path)
+    # hash_path = hash(hash_path)
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=5,
              title="generalization load_relative", save_path=f"./output/hp",
-            y_nodes = ["gen", "ext_grid", "bus"],
+             y_nodes=["gen", "ext_grid", "bus"],
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
              scale=False, filter=True, opf=opf, use_ray=False, uniqueid=hash_path,
-             cv_ratio=cv_ratio, clamp_boundary= clamp_boundary, use_physical_loss=use_physical_loss)
+             cv_ratio=cv_ratio, clamp_boundary=clamp_boundary, use_physical_loss=use_physical_loss)
     plt.show()
     exit()
 

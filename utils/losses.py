@@ -9,13 +9,15 @@ def relative_loss(yhat, y):
 
 
 def node_loss(yhat, y, mask=None):
-    criterions = [torch.nn.MSELoss(reduction="none"),torch.nn.L1Loss(reduction="none")]
+    criterions = [torch.nn.MSELoss(reduction="none"), torch.nn.L1Loss(reduction="none")]
     if mask is None:
         losses = [criterion(yhat, y[:, :yhat.shape[1]]).unsqueeze(0) for criterion in criterions]
     else:
-        losses = [criterion(yhat.flatten(), y.flatten()[mask.bool().flatten()]).unsqueeze(0) for criterion in criterions]
+        losses = [criterion(yhat.flatten(), y.flatten()[mask.bool().flatten()]).unsqueeze(0) for criterion in
+                  criterions]
 
     return torch.cat(losses).sum(0)
+
 
 def boundary_loss(boundaries, y, node=""):
     # minp = boundaries[:,0] # maxp = boundaries[:,1]
@@ -52,7 +54,7 @@ def power_imbalance_loss(data, out, neighboorhood=None):
 
     """
 
-    if neighboorhood is None or len(neighboorhood[2])!=len(out.get("gen")):
+    if neighboorhood is None or len(neighboorhood[2]) != len(out.get("gen")):
 
         bus_to_line_list = list(zip(*data.edge_index_dict.get(('bus', 'to', 'line')).cpu().tolist()))
         line_to_bus_list = list(zip(*data.edge_index_dict.get(('line', 'to', 'bus')).cpu().tolist()))
@@ -64,7 +66,7 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     else:
         bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index = neighboorhood
 
-    predicted_gen_P = data.sn_mva[0] * out.get("gen")[gen_index,0]
+    predicted_gen_P = data.sn_mva[0] * out.get("gen")[gen_index, 0]
     predicted_gen_Q = data.sn_mva[0] * out.get("gen")[gen_index, 1]
 
     predicted_ext_P = data.sn_mva[0] * out.get("ext_grid")[ext_index, 2]
@@ -112,7 +114,6 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     bus_true = bus_features + bus_generator + bus_ext
     Pji_true = bus_true[i, 0]
     Qji_true = bus_true[i, 1]
-
 
     return torch.cat([torch.abs(Pji - Pji_true).unsqueeze(1), torch.abs(Qji - Qji_true).unsqueeze(1)],
                      dim=-1), neighboorhood  # (num_edges, 2)

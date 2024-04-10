@@ -36,10 +36,12 @@ def get_parser():
     parser.add_argument('-o', '--opf', help="Scaling features", type=int, default=1)
     parser.add_argument('-r', '--ray', help="Parallelize with ray", type=int, default=0)
     parser.add_argument('-cb', '--clamp_boundary',
-                        help="Clamping output; 1 clamp training only, 2 clamp both training and evaluation, 3 clamp validation only", type=int,
+                        help="Clamping output; 1 clamp training only, 2 clamp both training and evaluation, 3 clamp validation only",
+                        type=int,
                         default=1)
     parser.add_argument('-pl', '--use_physical_loss',
-                        help="Whether to include physical loss; 1 report it only, 2 report it and minimize it", type=int,
+                        help="Whether to include physical loss; 1 report it only, 2 report it and minimize it",
+                        type=int,
                         default=1)
 
     parser.add_argument('-e', '--epochs', help="Max epochs", type=int, default=500)

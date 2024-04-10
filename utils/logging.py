@@ -95,15 +95,15 @@ def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
     dic = {}
     for node, outputs in output_nodes.items():
         ground_truth = labels[node]
-        if node=="gen":
+        if node == "gen":
             dic = build_log_opf(dic, "P", node, outputs, 0, ground_truth, 0)
             dic = build_log_opf(dic, "Q", node, outputs, 1, ground_truth, 1)
 
-        elif node=="ext_grid":
+        elif node == "ext_grid":
             dic = build_log_opf(dic, "P", node, outputs, 2, ground_truth, 0)
             dic = build_log_opf(dic, "Q", node, outputs, 3, ground_truth, 1)
 
-        elif node =="bus":
+        elif node == "bus":
             dic = build_log_opf(dic, "Vm", node, outputs, 4, ground_truth, 0)
             dic = build_log_opf(dic, "Va", node, outputs, 5, ground_truth, 1)
 

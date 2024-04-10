@@ -61,9 +61,12 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
     neighboorhood = None
     while True:
         for batch in train_loader:
-            out, labels, loss, losses, b_losses, neighboorhood = train_step(model, optimizer, batch, None, y_nodes, node_loss, hetero,
-                                                     clamp_boundary=(clamp_boundary == 1 or clamp_boundary == 2),
-                                                     use_physical_loss=use_physical_loss, neighboorhood=neighboorhood)
+            out, labels, loss, losses, b_losses, neighboorhood = train_step(model, optimizer, batch, None, y_nodes,
+                                                                            node_loss, hetero,
+                                                                            clamp_boundary=(
+                                                                                        clamp_boundary == 1 or clamp_boundary == 2),
+                                                                            use_physical_loss=use_physical_loss,
+                                                                            neighboorhood=neighboorhood)
         lr_scheduler.step()
 
         val_loss_gen = 0
@@ -73,8 +76,11 @@ def objective(config, graph, device, max_epochs, y_nodes, hetero, train_loader, 
 
         for batch in val_loader:
             last_out, last_label, loss, losses, b_losses, p_losses, neighboorhood = eval_step(model, batch, None,
-                  y_nodes, node_loss, hetero, clamp_boundary=(clamp_boundary == 2 or clamp_boundary == 3),
-                   neighboorhood=neighboorhood, use_physical_loss=use_physical_loss)
+                                                                                              y_nodes, node_loss,
+                                                                                              hetero, clamp_boundary=(
+                            clamp_boundary == 2 or clamp_boundary == 3),
+                                                                                              neighboorhood=neighboorhood,
+                                                                                              use_physical_loss=use_physical_loss)
 
             val_loss_gen += losses[0].sum()
             val_loss_ext_grid += losses[1].sum() if len(losses) > 1 else 0
@@ -127,7 +133,7 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
         tune.with_parameters(objective, graph=ray.put(graph), device=device, max_epochs=max_epochs, y_nodes=y_nodes,
                              hetero=hetero, train_loader=ray.put(training_loader),
                              val_loader=ray.put(validation_loader), clamp_boundary=clamp_boundary,
-                            use_physical_loss=use_physical_loss),
+                             use_physical_loss=use_physical_loss),
         tune_config=tune.TuneConfig(
             search_alg=algo,
             num_samples=num_samples,
@@ -186,8 +192,12 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
         for batch_id, batch in enumerate(train_loader):
             out, labels, loss, losses, b_losses, p_losses, neighboorhood = train_step(model, optimizer, batch, None,
-                    y_nodes, loss_fn, hetero, clamp_boundary=(clamp_boundary == 1 or clamp_boundary == 2),
-                  use_physical_loss=use_physical_loss, neighboorhood=neighboorhood, epoch=epoch,batch_id=batch_id,
+                                                                                      y_nodes, loss_fn, hetero,
+                                                                                      clamp_boundary=(
+                                                                                                  clamp_boundary == 1 or clamp_boundary == 2),
+                                                                                      use_physical_loss=use_physical_loss,
+                                                                                      neighboorhood=neighboorhood,
+                                                                                      epoch=epoch, batch_id=batch_id,
                                                                                       weighting=weighting)
             train_loss += loss
             boundary_train_loss += np.concatenate(b_losses, 0).sum() if len(b_losses) else 0
@@ -222,8 +232,14 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         with torch.no_grad():
             for batch_id, batch in enumerate(val_loader):
                 last_out, last_label, loss, losses, b_losses, p_losses, neighboorhood = eval_step(model, batch, None,
-                  y_nodes, loss_fn, hetero, clamp_boundary=(clamp_boundary == 2 or clamp_boundary == 3),
-                   use_physical_loss=use_physical_loss,neighboorhood=neighboorhood, epoch=epoch, batch_id=batch_id)
+                                                                                                  y_nodes, loss_fn,
+                                                                                                  hetero,
+                                                                                                  clamp_boundary=(
+                                                                                                              clamp_boundary == 2 or clamp_boundary == 3),
+                                                                                                  use_physical_loss=use_physical_loss,
+                                                                                                  neighboorhood=neighboorhood,
+                                                                                                  epoch=epoch,
+                                                                                                  batch_id=batch_id)
                 val_loss += loss
                 boundary_loss_val += np.concatenate(b_losses, 0).sum() if len(b_losses) else 0
                 physical_loss_val += np.concatenate(b_losses, 0).sum() if len(p_losses) else 0
@@ -260,25 +276,28 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
         if experiment is not None:
             log_dict = {"train_losses": train_loss,
-                        "val_losses": val_loss,"p_train_losses":physical_train_loss,"p_val_losses":physical_loss_val,
+                        "val_losses": val_loss, "p_train_losses": physical_train_loss,
+                        "p_val_losses": physical_loss_val,
                         "b_train_losses": boundary_train_loss, "b_val_losses": boundary_loss_val, "learning_rate": lr,
                         "val_losses_gen": val_loss_gen, "val_losses_ext_grid": val_loss_ext_grid,
                         "val_losses_bus": val_loss_bus, "val_losses_line": val_loss_line}
             experiment.log_metrics(log_dict, epoch=epoch)
             logged_metrics = {}
-            outputs_keys=  {"gen":[0,1],"ext_grid":[2,3],"bus":[3,4]}
+            outputs_keys = {"gen": [0, 1], "ext_grid": [2, 3], "bus": [3, 4]}
             for k, v in out_all[0].items():
                 logged_metrics = {**logged_metrics,
-                                  **{f"out_{k}_{i}_0": val.cpu().item() for (i, val) in enumerate(v[0]) if i in outputs_keys.get(k)}}
+                                  **{f"out_{k}_{i}_0": val.cpu().item() for (i, val) in enumerate(v[0]) if
+                                     i in outputs_keys.get(k)}}
                 logged_metrics = {**logged_metrics,
                                   **{f"out_{k}_{i}_1": val.cpu().item() for (i, val) in enumerate(v[1]) if
                                      i in outputs_keys.get(k)}}
 
                 logged_metrics = {**logged_metrics,
-                                  **{f"label_{k}_{i}_0": val.cpu().item() for (i, val) in enumerate(labels_all[0][k][0])}}
+                                  **{f"label_{k}_{i}_0": val.cpu().item() for (i, val) in
+                                     enumerate(labels_all[0][k][0])}}
                 logged_metrics = {**logged_metrics,
-                                  **{f"label_{k}_{i}_1": val.cpu().item() for (i, val) in enumerate(labels_all[0][k][1])}}
-
+                                  **{f"label_{k}_{i}_1": val.cpu().item() for (i, val) in
+                                     enumerate(labels_all[0][k][1])}}
 
             experiment.log_metrics(logged_metrics, epoch=epoch)
 
@@ -308,7 +327,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     return_output = {}
     if hetero:
         out = model(data.x_dict, data.edge_index_dict)
-        total_nodes = {node:len(data[node].y) for node in feature_node}
+        total_nodes = {node: len(data[node].y) for node in feature_node}
         for i, node in enumerate(feature_node):
             label = data[node].y
             output = out[node]
@@ -334,10 +353,10 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             else:
                 loss_node = loss_label
 
-            weight_node = np.sum(list(total_nodes.values()))/total_nodes.get(node) if weighting=="relative" else 1
+            weight_node = np.sum(list(total_nodes.values())) / total_nodes.get(node) if weighting == "relative" else 1
             loss += weight_node * loss_node.sum()
 
-            if use_physical_loss and node=="bus":
+            if use_physical_loss and node == "bus":
                 physical_loss, neighboorhood = power_imbalance_loss(data, out, neighboorhood)
                 physical_losses.append(physical_loss.sum(1).detach().numpy())
                 if use_physical_loss == 2:
@@ -414,7 +433,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
 
             output_mask = data[node].output_mask
             loss_node = loss_f(label, output, output_mask)
-            loss_boundary = boundary_loss(data[node].boundaries, output,node=node)
+            loss_boundary = boundary_loss(data[node].boundaries, output, node=node)
 
             if clamp_boundary:
                 return_output[node] = clamp_boundaries(data[node].boundaries, output, node, output_mask)
@@ -426,8 +445,8 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
             boundary_losses.append(loss_boundary.cpu().detach().numpy())
             loss += loss_node.sum()
 
-            if use_physical_loss and node=="bus":
-                physical_loss, neighboorhood = power_imbalance_loss(data, out,neighboorhood=neighboorhood)
+            if use_physical_loss and node == "bus":
+                physical_loss, neighboorhood = power_imbalance_loss(data, out, neighboorhood=neighboorhood)
                 physical_losses.append(physical_loss.sum().cpu().detach().numpy())
 
     else:

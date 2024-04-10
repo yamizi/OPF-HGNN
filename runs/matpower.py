@@ -7,14 +7,14 @@ from utils.pandapower.mutations import mutate_loads
 import os
 import numpy as np
 
-def opf(case, all_loads, working_directory="./output",uniqueid="default", octave_path=None, batch_size=1):
 
+def opf(case, all_loads, working_directory="./output", uniqueid="default", octave_path=None, batch_size=1):
     # Loads are relative changes
 
     if octave_path is not None:
         os.environ["OCTAVE_EXECUTABLE"] = octave_path
 
-    verbose = int(os.environ.get("VERBOSE_MATPOWER",0))
+    verbose = int(os.environ.get("VERBOSE_MATPOWER", 0))
 
     from oct2py import Oct2Py, Oct2PyError
     try:
@@ -24,7 +24,7 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
         return None
 
     matpower_directory = f"{working_directory}/matpower"
-    os.makedirs(matpower_directory,exist_ok=True)
+    os.makedirs(matpower_directory, exist_ok=True)
     octave.addpath(matpower_directory)
 
     octave.eval(f"mpc = loadcase('{case}');")
@@ -36,31 +36,31 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
     PV bus (Generators)   = 2
     """
     all_buses = dict(zip(range(len(buses)), buses.tolist()))
-    pq_loads = {a:v for a,v in enumerate(buses.tolist()) if (v[1]==1 and v[2]!=0and v[3]!=0)}
+    pq_loads = {a: v for a, v in enumerate(buses.tolist()) if (v[1] == 1 and v[2] != 0 and v[3] != 0)}
 
     pq = np.array(list((pq_loads.values())))
     convergence_times = []
-    networks =[]
+    networks = []
     for i in range(batch_size):
         mpc = copy.deepcopy(mpc_original)
         loads = all_loads[i]
         multiplier = np.ones_like(pq)
-        nb_loads = min(len(loads),len(multiplier))
+        nb_loads = min(len(loads), len(multiplier))
         multiplier[:nb_loads, 2:4] = loads[:nb_loads, 1:] + 1
         pq_updated = pq * multiplier
 
-        pq_loads_updated = {a:pq_updated[i].tolist() for i, a in enumerate(pq_loads.keys())}
+        pq_loads_updated = {a: pq_updated[i].tolist() for i, a in enumerate(pq_loads.keys())}
         mpc.bus = np.array(list({**all_buses, **pq_loads_updated}.values()))
-        octave.push("mpc",mpc)
+        octave.push("mpc", mpc)
         if verbose:
             octave.eval("[baseMVA, bus, gen, gencost, branch, f, success, et] = runopf(mpc);")
         else:
             octave.eval("evalc('[baseMVA, bus, gen, gencost, branch, f, success, et] = runopf(mpc);');")
-        #octave.eval("[success, results] = runopf(mpc);")
+        # octave.eval("[success, results] = runopf(mpc);")
         success = octave.pull("success")
         if not success:
             network, convergence_time = None, None
-            #octave.eval(f'save("-binary", "converged_{uniqueid}.mat", "results")')
+            # octave.eval(f'save("-binary", "converged_{uniqueid}.mat", "results")')
         else:
             bus_names = mpc.bus_name
             try:
@@ -75,13 +75,13 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
 
             pp.runpp(network)
             network.res_bus[["p_mw", "q_mvar"]] = mpc.bus[:, 2:4]
-            network.res_bus[["vm_pu","va_degree"]] = mpc.bus[:,7:9]
-            generators = mpc.gen[:,0:6]
+            network.res_bus[["vm_pu", "va_degree"]] = mpc.bus[:, 7:9]
+            generators = mpc.gen[:, 0:6]
             ext_grid_bus = network.ext_grid.bus.values[0]
-            ext_grid_index = generators[:,0].tolist().index(ext_grid_bus)
+            ext_grid_index = generators[:, 0].tolist().index(ext_grid_bus)
             network.res_ext_grid[["p_mw", "q_mvar"]] = generators[ext_grid_index, 1:3]
-            network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators,ext_grid_index, axis=0)[:,1:3]
-            #network.res_gen[['vm_pu']] = np.delete(generators,ext_grid_index, axis=0)[:,5]
+            network.res_gen[["p_mw", "q_mvar"]] = np.delete(generators, ext_grid_index, axis=0)[:, 1:3]
+            # network.res_gen[['vm_pu']] = np.delete(generators,ext_grid_index, axis=0)[:,5]
 
         networks.append(network)
         convergence_times.append(convergence_time)
@@ -93,7 +93,7 @@ def opf(case, all_loads, working_directory="./output",uniqueid="default", octave
 
 if __name__ == "__main__":
     case = "case1354pegase"
-    #case="case9"
+    # case="case9"
     case_method = getattr(pp.networks, case)
     net = case_method()
 
