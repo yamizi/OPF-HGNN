@@ -53,5 +53,7 @@ def get_parser():
     parser.add_argument('-ag', '--aggr', help="Message passing aggregation", type=str, default="mean")
     parser.add_argument('-hc', '--hidden_channels', help="Hidden layers features seprated by :", type=str,
                         default="64:64")
+    parser.add_argument('-we', '--weighting', help="Weighting strategy: uniform, relative, adatptive", type=str,
+                        default="relative")
 
     return parser

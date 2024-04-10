@@ -155,7 +155,7 @@ def train_cv(pickle_file, cv_ratio, graph, max_epochs=20, num_samples=10, y_node
 
 def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "ext_grid"], log_every=10,
               device="cpu", decay_lr=0.3, hetero=True, base_lr=0.01, experiment=None, clamp_boundary=0,
-              use_physical_loss=1):
+              use_physical_loss=1, weighting="relative"):
     optimizer = torch.optim.Adam(model.parameters(), lr=base_lr)
     milestones = [max_epochs // 2, (max_epochs * 3) // 4, (max_epochs * 9) // 10]
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=decay_lr)
@@ -187,7 +187,8 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         for batch_id, batch in enumerate(train_loader):
             out, labels, loss, losses, b_losses, p_losses, neighboorhood = train_step(model, optimizer, batch, None,
                     y_nodes, loss_fn, hetero, clamp_boundary=(clamp_boundary == 1 or clamp_boundary == 2),
-                  use_physical_loss=use_physical_loss, neighboorhood=neighboorhood, epoch=epoch,batch_id=batch_id)
+                  use_physical_loss=use_physical_loss, neighboorhood=neighboorhood, epoch=epoch,batch_id=batch_id,
+                                                                                      weighting=weighting)
             train_loss += loss
             boundary_train_loss += np.concatenate(b_losses, 0).max() if len(b_losses) else 0
             physical_train_loss += np.concatenate(p_losses, 0).mean() if len(p_losses) else 0
@@ -288,7 +289,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
 def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True,
                use_boundary_loss=True, clamp_boundary=True, use_physical_loss=1, neighboorhood=None
-               , epoch=0, batch_id=0):
+               , epoch=0, batch_id=0, weighting="relative"):
     model.train()
     optimizer.zero_grad()
     if loss_f is None:
@@ -307,7 +308,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     return_output = {}
     if hetero:
         out = model(data.x_dict, data.edge_index_dict)
-
+        total_nodes = {node:len(data[node].y) for node in feature_node}
         for i, node in enumerate(feature_node):
             label = data[node].y
             output = out[node]
@@ -333,7 +334,8 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             else:
                 loss_node = loss_label
 
-            loss += loss_node.mean()
+            weight_node = np.sum(list(total_nodes.values()))/total_nodes.get(node) if weighting=="relative" else 1
+            loss += weight_node * loss_node.mean()
 
             if use_physical_loss and node=="bus":
                 physical_loss, neighboorhood = power_imbalance_loss(data, out, neighboorhood)

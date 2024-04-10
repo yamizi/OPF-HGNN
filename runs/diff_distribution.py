@@ -30,7 +30,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64,64],
              base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100, build_db_only=False,
-             clamp_boundary=0, use_physical_loss=1):
+             clamp_boundary=0, use_physical_loss=1, weighting="relative"):
 
     if not uniqueid:
         uniqueid = uuid.uuid4()
@@ -52,7 +52,8 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                                    "hidden_channels": hidden_channels, "num_samples": num_samples,
                                    "val_batch_size": val_batch_size, "pickle_file": pickle_file,
                                   "clamp_boundary":clamp_boundary,"use_physical_loss":use_physical_loss,
-                                   "base_lr": base_lr, "cv_ratio": cv_ratio, "cls": cls, "aggr": aggr})
+                                   "base_lr": base_lr, "cv_ratio": cv_ratio, "cls": cls, "aggr": aggr,
+                                   "weighting":weighting,"losses":"mse+l1"})
 
     if (os.path.exists(pickle_file)):
         with open(pickle_file, "rb") as pickled:
@@ -149,7 +150,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, p_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device,
         base_lr=base_lr, decay_lr=decay_lr, experiment=experiment, clamp_boundary=clamp_boundary,
-    use_physical_loss=use_physical_loss)
+    use_physical_loss=use_physical_loss, weighting=weighting)
 
     val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
@@ -204,7 +205,7 @@ if __name__ == "__main__":
     opf = 3
     cv_ratio = 0
     clamp_boundary =3
-    use_physical_loss = 0
+    use_physical_loss = 1
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
@@ -212,6 +213,7 @@ if __name__ == "__main__":
     #hash_path = hash(hash_path)
     run_case(training_cases=training_case, validation_case=validation_case, val_batch_size=50, train_batch_size=5,
              title="generalization load_relative", save_path=f"./output/hp",
+            y_nodes = ["gen", "ext_grid", "bus"],
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
              scale=False, filter=True, opf=opf, use_ray=False, uniqueid=hash_path,
              cv_ratio=cv_ratio, clamp_boundary= clamp_boundary, use_physical_loss=use_physical_loss)
