@@ -31,7 +31,7 @@ def boundary_loss(boundaries, y, node=""):
     # return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
 
-def power_imbalance_loss(data, out):
+def power_imbalance_loss(data, out, neighboorhood=None):
     """calculate injected power Pji
 
     Formula:
@@ -45,18 +45,23 @@ def power_imbalance_loss(data, out):
     $$
 
     Input:
-        x_i: (num_edges, 6)
-        x_j: (num_edges, 6)
-        edge_attr: (num_edges, 2)
+
 
     Return:
-        Pji|Qji: (num_edges, 2)
-    """
-    bus_to_line_list = list(zip(*data.edge_index_dict.get(('bus', 'to', 'line')).cpu().tolist()))
-    line_to_bus_list = list(zip(*data.edge_index_dict.get(('line', 'to', 'bus')).cpu().tolist()))
 
-    bus_to_gen_index, gen_index = data.edge_index_dict.get(('bus', 'to', 'gen')).cpu().tolist()
-    bus_to_ext_index, ext_index = data.edge_index_dict.get(('bus', 'to', 'ext_grid')).cpu().tolist()
+    """
+
+    if neighboorhood is None or len(neighboorhood[2])!=len(out.get("gen")):
+
+        bus_to_line_list = list(zip(*data.edge_index_dict.get(('bus', 'to', 'line')).cpu().tolist()))
+        line_to_bus_list = list(zip(*data.edge_index_dict.get(('line', 'to', 'bus')).cpu().tolist()))
+
+        bus_to_gen_index, gen_index = data.edge_index_dict.get(('bus', 'to', 'gen')).cpu().tolist()
+        bus_to_ext_index, ext_index = data.edge_index_dict.get(('bus', 'to', 'ext_grid')).cpu().tolist()
+
+        neighboorhood = bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index
+    else:
+        bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index = neighboorhood
 
     predicted_gen_P = data.sn_mva[0] * out.get("gen")[gen_index,0]
     predicted_gen_Q = data.sn_mva[0] * out.get("gen")[gen_index, 1]
@@ -80,10 +85,11 @@ def power_imbalance_loss(data, out):
     g_ij = r / (r ** 2 + x ** 2)
     b_ij = -x / (r ** 2 + x ** 2)
 
+    # Va in label is pre-normalized by division over 50
     vm_i = out.get("bus")[i, 4]
-    va_i = 1 / 180. * torch.pi * out.get("bus")[i, 5]
+    va_i = 50 / 180. * torch.pi * out.get("bus")[i, 5]
     vm_j = out.get("bus")[j, 4]
-    va_j = 1 / 180. * torch.pi * out.get("bus")[j, 5]
+    va_j = 50 / 180. * torch.pi * out.get("bus")[j, 5]
     e_i = vm_i * torch.cos(va_i)
     f_i = vm_i * torch.sin(va_i)
     e_j = vm_j * torch.cos(va_j)
@@ -107,27 +113,5 @@ def power_imbalance_loss(data, out):
     Qji_true = bus_true[i, 1]
 
 
-    ####### my (incomplete) method #######
-    # ym_ij = torch.sqrt(g_ij**2+b_ij**2)
-    # ya_ij = torch.acos(g_ij/ym_ij)
-    # Pji = vm_i * vm_j * ym_ij * torch.cos(va_i - va_j - ya_ij) \
-    #         - vm_i**2 * ym_ij * torch.cos(-ya_ij)
-    # Qji = vm_i * vm_j * ym_ij * torch.sin(va_i - va_j - ya_ij) \
-    #         - vm_i**2 * ym_ij * torch.sin(-ya_ij)
-
-    ####### another reference method #######
-    # Pji = vm_i * vm_j * (g_ij*torch.cos(va_i-va_j)+b_ij*torch.sin(va_i-va_j))
-    # Qji = vm_i * vm_j * (g_ij*torch.sin(va_i-va_j)-b_ij*torch.cos(va_i-va_j))
-
-    ####### reference method 3 #######
-    # Pji = g_ij*(vm_i**2 - vm_i*vm_j*torch.cos(va_i-va_j)) \
-    #     - b_ij*(vm_i*vm_j*torch.sin(va_i-va_j))
-    # Qji = b_ij*(- vm_i**2 + vm_i*vm_j*torch.cos(va_i-va_j)) \
-    #     - g_ij*(vm_i*vm_j*torch.sin(va_i-va_j))
-
-    # --- DEBUG ---
-    # self._dPQ = torch.cat([Pji, Qji], dim=-1) # (num_edges, 2)
-    # --- DEBUG ---
-
     return torch.cat([torch.abs(Pji - Pji_true).unsqueeze(1), torch.abs(Qji - Qji_true).unsqueeze(1)],
-                     dim=-1)  # (num_edges, 2)
+                     dim=-1), neighboorhood  # (num_edges, 2)
