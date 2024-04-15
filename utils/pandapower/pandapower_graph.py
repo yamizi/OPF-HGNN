@@ -234,8 +234,9 @@ class PandaPowerGraph(InMemoryDataset):
                     if node in self.y_nodes:
                         mask[:, 6:10] = 1
                         max_lines = merged_df[["max_i_ka"]].values - 10 * boundary_tolerance
-                        boundaries[:, 16:20] = np.concatenate(
-                            [np.zeros_like(max_lines), max_lines, np.zeros_like(max_lines), max_lines], 1)
+                        if boundaries.shape[1]>=20:
+                            boundaries[:, 16:20] = np.concatenate(
+                                [np.zeros_like(max_lines), max_lines, np.zeros_like(max_lines), max_lines], 1)
 
                     y = ["pl_mw", "ql_mvar", "i_from_ka", "i_to_ka"]
                     drop_y = ["pl_mw", "ql_mvar", "i_from_ka", "i_to_ka"]
