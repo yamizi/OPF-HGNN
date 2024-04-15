@@ -328,6 +328,9 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     if hetero:
         out = model(data.x_dict, data.edge_index_dict)
         total_nodes = {node: len(data[node].y) for node in feature_node}
+
+
+
         for i, node in enumerate(feature_node):
             label = data[node].y
             output = out[node]
@@ -339,7 +342,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             output_mask = data[node].output_mask
 
             loss_label = loss_f(label, output, output_mask)
-            losses.append(loss_label.cpu().detach().numpy())
+            losses.append(loss_label)
             if clamp_boundary:
                 output = clamp_boundaries(data[node].boundaries, output, node, output_mask)
 
@@ -349,7 +352,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             if use_boundary_loss:
                 loss_boundary = boundary_loss(data[node].boundaries, output, node=node)
                 loss_node = torch.cat([loss_label.reshape((loss_boundary.shape[0], -1)), loss_boundary.unsqueeze(1)], 1)
-                boundary_losses.append(loss_boundary.cpu().detach().numpy())
+                boundary_losses.append(loss_boundary)
             else:
                 loss_node = loss_label
 
@@ -358,7 +361,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
 
             if use_physical_loss and node == "bus":
                 physical_loss, neighboorhood = power_imbalance_loss(data, out, neighboorhood)
-                physical_losses.append(physical_loss.sum(1).detach().numpy())
+                physical_losses.append(physical_loss.sum(1))
                 if use_physical_loss == 2:
                     loss += physical_loss.sum()
                 elif use_physical_loss == 3:
@@ -378,12 +381,19 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
         loss_label = loss_f(label, output)
         # loss_boundary = boundary_loss(data[node].boundaries, output)
         loss_node = loss_label  # torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
-        losses.append(loss_label.cpu().detach().numpy())
+        losses.append(loss_label)
         # boundary_losses.append(loss_boundary.cpu().detach().numpy())
         loss += loss_node.sum()
 
+    if weighting == "random":
+        all_losses = torch.cat(physical_losses + boundary_losses + losses)
+        random_weights = torch.nn.functional.softmax(torch.rand(len(all_losses)))
+        loss = torch.dot(random_weights,all_losses)
+
     loss.backward()
     optimizer.step()
+
+    #.cpu().detach().numpy()
 
     return return_output, return_label, float(loss), losses, boundary_losses, physical_losses, neighboorhood
 

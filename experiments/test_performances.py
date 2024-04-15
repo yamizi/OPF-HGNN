@@ -21,6 +21,7 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
             validation_case = [case, nb_val, 0.7, [mutation]]
             path = "./output/test_perf/" + project_name
             hash_path = f"{training_case}_{validation_case}"
+            hash_path = hash_path if opf==1 else f"hash_path_{opf}"
             hash_path = hashlib.md5(hash_path.encode()).hexdigest()
             # hash_path = hash(hash_path)
 
