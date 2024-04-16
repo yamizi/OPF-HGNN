@@ -387,7 +387,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
 
     if weighting == "random":
         all_losses = torch.cat(physical_losses + boundary_losses + losses)
-        random_weights = torch.nn.functional.softmax(torch.rand(len(all_losses)))
+        random_weights = torch.nn.functional.softmax(torch.rand(len(all_losses))).to(all_losses.device)
         loss = torch.dot(random_weights,all_losses)
 
     loss.backward()
