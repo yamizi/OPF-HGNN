@@ -13,16 +13,19 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
         nb_train=8000, nb_val=2000, dataset_type="y_OPF", device="cuda", scale=0, cv_ratio=0.2,
         opf=1, project_name="test_perf_v4", use_ray=1, epochs=500, num_samples=200, aggr="mean", cls="sage",
         base_lr=0.1, decay_lr=0.5, hidden_channels=[64, 64], batch_train=256, clamp_boundary=0, use_physical_loss=1
-        , weighting="relative"):
+        , weighting="relative", uniqueid=""):
     for mutation in mutations:
         for case in cases:
             experiment = init_comet({"case": case, "mutation": mutation}, project_name)
             training_case = [[case, nb_train, 0.7, [mutation]]]
             validation_case = [case, nb_val, 0.7, [mutation]]
             path = "./output/test_perf/" + project_name
-            hash_path = f"{training_case}_{validation_case}"
-            hash_path = hash_path if opf==1 else f"hash_path_{opf}"
-            hash_path = hashlib.md5(hash_path.encode()).hexdigest()
+
+            if uniqueid=="":
+                hash_path = f"{training_case}_{validation_case}"
+                hash_path = hashlib.md5(hash_path.encode()).hexdigest()
+            else:
+                hash_path = uniqueid
             # hash_path = hash(hash_path)
 
             run_case(training_cases=training_case, validation_case=validation_case, plot=False,
@@ -44,4 +47,5 @@ if __name__ == "__main__":
         dataset_type=args.dataset_type, opf=args.opf, project_name=comet_name, use_ray=args.ray,
         num_samples=args.num_samples, cv_ratio=args.cv_ratio, aggr=args.aggr, cls=args.cls, decay_lr=args.decay_lr,
         base_lr=args.base_lr, hidden_channels=hidden_channels, batch_train=args.batch_train,
-        clamp_boundary=args.clamp_boundary, use_physical_loss=args.use_physical_loss, weighting=args.weighting)
+        clamp_boundary=args.clamp_boundary, use_physical_loss=args.use_physical_loss, weighting=args.weighting,
+        uniqueid=args.uniqueid)

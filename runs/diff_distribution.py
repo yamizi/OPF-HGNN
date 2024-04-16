@@ -202,7 +202,7 @@ if __name__ == "__main__":
     mutation = "load_relative"
     training_case = [[case, 40, 0.7, [mutation]]]
     validation_case = [case, 10, 0.7, [mutation]]
-    opf = 1
+    opf = 3
     cv_ratio = 0
     clamp_boundary = 3
     use_physical_loss = 1

@@ -57,5 +57,6 @@ def get_parser():
                         default="64:64")
     parser.add_argument('-we', '--weighting', help="Weighting strategy: uniform, relative, adatptive", type=str,
                         default="relative")
-
+    parser.add_argument('-uid', '--uniqueid', help="Weighting strategy: uniform, relative, adatptive", type=str,
+                        default="")
     return parser

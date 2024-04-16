@@ -200,8 +200,8 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                                                                                       epoch=epoch, batch_id=batch_id,
                                                                                       weighting=weighting)
             train_loss += loss
-            boundary_train_loss += np.concatenate(b_losses, 0).sum() if len(b_losses) else 0
-            physical_train_loss += np.concatenate(p_losses, 0).sum() if len(p_losses) else 0
+            boundary_train_loss += np.concatenate([e.cpu().detach().numpy() for e in b_losses], 0).sum() if len(b_losses) else 0
+            physical_train_loss += np.concatenate([e.cpu().detach().numpy() for e in p_losses], 0).sum() if len(p_losses) else 0
 
         lr_scheduler.step()
         train_loss /= len(train_loader)
