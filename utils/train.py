@@ -24,10 +24,10 @@ def clamp_boundaries(boundaries, y, node=None, mask=None):
     max_boundaries = torch.stack([boundaries[:, 2 * i + 1] for i in range(y.shape[1])
                                   if torch.isnan(boundaries[:, 2 * i + 1]).sum() == 0], 1)
 
-    masked_y = torch.clamp(masked_y, min_boundaries, max_boundaries)
+    clamped_y = torch.clamp(masked_y, min_boundaries, max_boundaries)
 
     clamped = y * (1 - mask)
-    clamped[mask.bool()] = masked_y.flatten()
+    clamped[mask.bool()] = clamped_y.flatten()
     return clamped
 
 
@@ -283,7 +283,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                         "val_losses_bus": val_loss_bus, "val_losses_line": val_loss_line}
             experiment.log_metrics(log_dict, epoch=epoch)
             logged_metrics = {}
-            outputs_keys = {"gen": [0, 1], "ext_grid": [2, 3], "bus": [3, 4]}
+            outputs_keys = {"gen": [0, 1], "ext_grid": [2, 3], "bus": [4, 5]}
             for k, v in out_all[0].items():
                 logged_metrics = {**logged_metrics,
                                   **{f"out_{k}_{i}_0": val.cpu().item() for (i, val) in enumerate(v[0]) if
