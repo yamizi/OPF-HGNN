@@ -142,7 +142,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
     model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr, cls=cls)
     model = to_hetero(model, data.metadata(), aggr='sum').to(device)
-    train_loader = DataLoader(train_list, batch_size=val_batch_size)
+    train_loader = DataLoader(train_list, batch_size=train_batch_size)
     val_loader = DataLoader([g[0].to(device) for g in val_graphs], batch_size=val_batch_size)
 
     print("Training model with device", next(model.parameters()).device)

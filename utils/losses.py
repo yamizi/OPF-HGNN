@@ -56,7 +56,7 @@ def power_imbalance_loss(data, out, neighboorhood=None):
 
     """
     begin = time.time()
-
+    durations = []
     if neighboorhood is None or len(neighboorhood[2]) != len(out.get("gen")):
 
         bus_to_line_list = list(zip(*data.edge_index_dict.get(('bus', 'to', 'line')).cpu().tolist()))
@@ -65,9 +65,14 @@ def power_imbalance_loss(data, out, neighboorhood=None):
         bus_to_gen_index, gen_index = data.edge_index_dict.get(('bus', 'to', 'gen')).cpu().tolist()
         bus_to_ext_index, ext_index = data.edge_index_dict.get(('bus', 'to', 'ext_grid')).cpu().tolist()
 
-        neighboorhood = bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index
+        bus_to_bus_dict = [
+            (start, end, l1) for
+            (start, l1) in bus_to_line_list for (l2, end) in line_to_bus_list if (l1 == l2 and start != end)]
+
+        neighboorhood = bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict
     else:
-        bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index = neighboorhood
+        bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict = neighboorhood
+
 
     # line features are: 'std_type', 'length_km', 'r_ohm_per_km', 'x_ohm_per_km', 'c_nf_per_km','g_us_per_km'
     line_features = data.x_dict.get("line")[:, :6]
@@ -75,21 +80,20 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     bus_features = data.x_dict.get("bus")[:, -2:]
 
     # (i, j, r_ij, x_ij)
-    bus_to_bus_dict = [
-        (start, end, line_features[l1, 2] * line_features[l1, 1], line_features[l1, 3] * line_features[l1, 1]) for
-        (start, l1) in bus_to_line_list for (l2, end) in line_to_bus_list if (l1 == l2 and start != end)]
-
     i, j = [a[0] for a in bus_to_bus_dict], [a[1] for a in bus_to_bus_dict]
-    r, x = torch.stack([a[2] for a in bus_to_bus_dict]), torch.stack([a[3] for a in bus_to_bus_dict])
+    r, x = torch.stack([line_features[a[2], 1]*line_features[a[2], 2] for a in bus_to_bus_dict]), torch.stack([line_features[a[2], 1]*line_features[a[2], 3] for a in bus_to_bus_dict])
+
+    vm_i = out.get("bus")[i, 4]
+    va_i = MAX_ANGLE / 180. * torch.pi * out.get("bus")[i, 5]
+    vm_j = out.get("bus")[j, 4]
+    va_j = MAX_ANGLE / 180. * torch.pi * out.get("bus")[j, 5]
+
+
 
     g_ij = r / (r ** 2 + x ** 2)
     b_ij = -x / (r ** 2 + x ** 2)
 
     # Va in label is pre-normalized by division over 50 (cf # Normalize angles in pandapower_graph.py)
-    vm_i = out.get("bus")[i, 4]
-    va_i = MAX_ANGLE / 180. * torch.pi * out.get("bus")[i, 5]
-    vm_j = out.get("bus")[j, 4]
-    va_j = MAX_ANGLE / 180. * torch.pi * out.get("bus")[j, 5]
     e_i = vm_i * torch.cos(va_i)
     f_i = vm_i * torch.sin(va_i)
     e_j = vm_j * torch.cos(va_j)
