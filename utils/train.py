@@ -280,7 +280,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         if experiment is not None:
             log_dict = {"train_losses": train_loss,
                         "val_losses": val_loss, "p_train_losses": physical_train_loss,
-                        "p_train_losses_duration": physical_train_loss_duration,
+                        "p_train_losses_duration": np.sum(physical_train_loss_duration),
                         "p_val_losses": physical_loss_val,
                         "b_train_losses": boundary_train_loss, "b_val_losses": boundary_loss_val, "learning_rate": lr,
                         "val_losses_gen": val_loss_gen, "val_losses_ext_grid": val_loss_ext_grid,
