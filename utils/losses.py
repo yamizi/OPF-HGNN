@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+from utils.pandapower.normalization import MAX_ANGLE
+import time
 
 
 def relative_loss(yhat, y):
@@ -53,6 +55,7 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     Return:
 
     """
+    begin = time.time()
 
     if neighboorhood is None or len(neighboorhood[2]) != len(out.get("gen")):
 
@@ -65,12 +68,6 @@ def power_imbalance_loss(data, out, neighboorhood=None):
         neighboorhood = bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index
     else:
         bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index = neighboorhood
-
-    predicted_gen_P = data.sn_mva[0] * out.get("gen")[gen_index, 0]
-    predicted_gen_Q = data.sn_mva[0] * out.get("gen")[gen_index, 1]
-
-    predicted_ext_P = data.sn_mva[0] * out.get("ext_grid")[ext_index, 2]
-    predicted_ext_Q = data.sn_mva[0] * out.get("ext_grid")[ext_index, 3]
 
     # line features are: 'std_type', 'length_km', 'r_ohm_per_km', 'x_ohm_per_km', 'c_nf_per_km','g_us_per_km'
     line_features = data.x_dict.get("line")[:, :6]
@@ -88,11 +85,11 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     g_ij = r / (r ** 2 + x ** 2)
     b_ij = -x / (r ** 2 + x ** 2)
 
-    # Va in label is pre-normalized by division over 50
+    # Va in label is pre-normalized by division over 50 (cf # Normalize angles in pandapower_graph.py)
     vm_i = out.get("bus")[i, 4]
-    va_i = 50 / 180. * torch.pi * out.get("bus")[i, 5]
+    va_i = MAX_ANGLE / 180. * torch.pi * out.get("bus")[i, 5]
     vm_j = out.get("bus")[j, 4]
-    va_j = 50 / 180. * torch.pi * out.get("bus")[j, 5]
+    va_j = MAX_ANGLE / 180. * torch.pi * out.get("bus")[j, 5]
     e_i = vm_i * torch.cos(va_i)
     f_i = vm_i * torch.sin(va_i)
     e_j = vm_j * torch.cos(va_j)
@@ -102,18 +99,28 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     Pji = g_ij * (e_i * e_j - e_i ** 2 + f_i * f_j - f_i ** 2) + b_ij * (f_i * e_j - e_i * f_j)
     Qji = g_ij * (f_i * e_j - e_i * f_j) + b_ij * (-e_i * e_j + e_i ** 2 - f_i * f_j + f_i ** 2)
 
-    #### True values for buses
+    #### predicted values for buses
     bus_generator = torch.zeros_like(bus_features)
-    bus_generator[bus_to_gen_index, 0] = predicted_gen_P
-    bus_generator[bus_to_gen_index, 1] = predicted_gen_Q
-
     bus_ext = torch.zeros_like(bus_features)
-    bus_ext[bus_to_ext_index, 0] = predicted_ext_P
-    bus_ext[bus_to_ext_index, 1] = predicted_ext_Q
+
+        #Step by step
+    # predicted_gen_P = data.sn_mva[0] * out.get("gen")[gen_index, 0]
+    # predicted_gen_Q = data.sn_mva[0] * out.get("gen")[gen_index, 1]
+    # predicted_ext_P = data.sn_mva[0] * out.get("ext_grid")[ext_index, 2]
+    # predicted_ext_Q = data.sn_mva[0] * out.get("ext_grid")[ext_index, 3]
+    # bus_generator[bus_to_gen_index, 0] = predicted_gen_P
+    # bus_generator[bus_to_gen_index, 1] = predicted_gen_Q
+    # bus_ext[bus_to_ext_index, 0] = predicted_ext_P
+    # bus_ext[bus_to_ext_index, 1] = predicted_ext_Q
+
+        #Equivalent
+    bus_generator[bus_to_gen_index,:] = data.sn_mva[0] * out.get("gen")[gen_index, 0:2]
+    bus_ext[bus_to_ext_index, :]  = data.sn_mva[0] * out.get("ext_grid")[ext_index, 2:4]
 
     bus_true = bus_features + bus_generator + bus_ext
     Pji_true = bus_true[i, 0]
     Qji_true = bus_true[i, 1]
 
+    duration= time.time()- begin
     return torch.cat([torch.abs(Pji - Pji_true).unsqueeze(1), torch.abs(Qji - Qji_true).unsqueeze(1)],
-                     dim=-1), neighboorhood  # (num_edges, 2)
+                     dim=-1), neighboorhood, duration  # (num_edges, 2)

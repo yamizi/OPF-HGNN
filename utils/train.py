@@ -180,6 +180,8 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
     val_losses_gen = []
     val_losses_ext_grid = []
     learning_rate = []
+    physical_train_loss_duration = []
+
     neighboorhood = None
 
     for epoch in range(0, max_epochs):
@@ -191,7 +193,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         physical_train_loss = 0
 
         for batch_id, batch in enumerate(train_loader):
-            out, labels, loss, losses, b_losses, p_losses, neighboorhood = train_step(model, optimizer, batch, None,
+            out, labels, loss, losses, b_losses, p_losses, (neighboorhood, physical_loss_duration) = train_step(model, optimizer, batch, None,
                                                                                       y_nodes, loss_fn, hetero,
                                                                                       clamp_boundary=(
                                                                                                   clamp_boundary == 1 or clamp_boundary == 2),
@@ -202,6 +204,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
             train_loss += loss
             boundary_train_loss += np.concatenate([e.cpu().detach().numpy() for e in b_losses], 0).sum() if len(b_losses) else 0
             physical_train_loss += np.concatenate([e.cpu().detach().numpy() for e in p_losses], 0).sum() if len(p_losses) else 0
+            physical_train_loss_duration = physical_train_loss_duration + physical_loss_duration
 
         lr_scheduler.step()
         train_loss /= len(train_loader)
@@ -277,6 +280,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         if experiment is not None:
             log_dict = {"train_losses": train_loss,
                         "val_losses": val_loss, "p_train_losses": physical_train_loss,
+                        "p_train_losses_duration": physical_train_loss_duration,
                         "p_val_losses": physical_loss_val,
                         "b_train_losses": boundary_train_loss, "b_val_losses": boundary_loss_val, "learning_rate": lr,
                         "val_losses_gen": val_loss_gen, "val_losses_ext_grid": val_loss_ext_grid,
@@ -323,6 +327,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     losses = []
     boundary_losses = []
     physical_losses = []
+    physical_losses_duration = []
     return_label = {}
     return_output = {}
     if hetero:
@@ -360,8 +365,9 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             loss += weight_node * loss_node.sum()
 
             if use_physical_loss and node == "bus":
-                physical_loss, neighboorhood = power_imbalance_loss(data, out, neighboorhood)
+                physical_loss, neighboorhood, duration = power_imbalance_loss(data, out, neighboorhood)
                 physical_losses.append(physical_loss.sum(1))
+                physical_losses_duration.append(duration)
                 if use_physical_loss == 2:
                     loss += physical_loss.sum()
                 elif use_physical_loss == 3:
@@ -395,7 +401,7 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
 
     #.cpu().detach().numpy()
 
-    return return_output, return_label, float(loss), losses, boundary_losses, physical_losses, neighboorhood
+    return return_output, return_label, float(loss), losses, boundary_losses, physical_losses, (neighboorhood, physical_losses_duration)
 
 
 def timeit(model, data, count=100000, hetero=True):
@@ -456,7 +462,7 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
             loss += loss_node.sum()
 
             if use_physical_loss and node == "bus":
-                physical_loss, neighboorhood = power_imbalance_loss(data, out, neighboorhood=neighboorhood)
+                physical_loss, neighboorhood, duration = power_imbalance_loss(data, out, neighboorhood=neighboorhood)
                 physical_losses.append(physical_loss.sum().cpu().detach().numpy())
 
     else:

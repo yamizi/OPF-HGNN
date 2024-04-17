@@ -3,6 +3,7 @@ import numpy as np
 MIN_PQ = -200
 MAX_PQ = 1800
 
+MAX_ANGLE = 50
 
 def normalizeCols(dataset, case="", columns=["p_mw", "q_mvar"], min_val=MIN_PQ, max_val=MAX_PQ):
     dts = []

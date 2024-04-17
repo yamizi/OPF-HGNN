@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 import json
 from copy import deepcopy
-from utils.pandapower.normalization import normalizeCols
+from utils.pandapower.normalization import normalizeCols, MAX_ANGLE
 
 INF_VAL = 10 ** 5
 
@@ -273,7 +273,7 @@ class PandaPowerGraph(InMemoryDataset):
             merged_df = normalizeCols(merged_df, min_val=0, max_val=network.sn_mva)
 
             # Normalize angles
-            merged_df = normalizeCols(merged_df, columns="va_degree", min_val=-50, max_val=50)
+            merged_df = normalizeCols(merged_df, columns="va_degree", min_val=-MAX_ANGLE, max_val=MAX_ANGLE)
 
             one_hot = pd.get_dummies(merged_df).dropna(axis=1).values.astype("float32")
             if scale and scaler is not None:
