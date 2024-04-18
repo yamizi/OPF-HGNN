@@ -2,8 +2,7 @@ import torch
 import numpy as np
 from utils.pandapower.normalization import MAX_ANGLE
 import time
-
-
+from torch.nn.functional import mse_loss
 def relative_loss(yhat, y):
     criterion = torch.nn.L1Loss(reduction="none")
     # criterion = torch.nn.MSELoss(reduction="none")
@@ -57,6 +56,8 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     """
     begin = time.time()
     durations = []
+
+    ## Caching repetitive variables that remain the same in all batches (except last one when incomplete)
     if neighboorhood is None or len(neighboorhood[2]) != len(out.get("gen")):
 
         bus_to_line_list = list(zip(*data.edge_index_dict.get(('bus', 'to', 'line')).cpu().tolist()))
@@ -69,9 +70,17 @@ def power_imbalance_loss(data, out, neighboorhood=None):
             (start, end, l1) for
             (start, l1) in bus_to_line_list for (l2, end) in line_to_bus_list if (l1 == l2 and start != end)]
 
-        neighboorhood = bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict
+        i, j = [a[0] for a in bus_to_bus_dict], [a[1] for a in bus_to_bus_dict]
+
+        bus_size = len(out.get("bus"))
+        buses = torch.LongTensor(i)
+
+        mask = torch.stack([buses == a for a in np.arange(bus_size)])
+
+        neighboorhood = bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict,i, j, mask
+
     else:
-        bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict = neighboorhood
+        bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict, i, j, mask = neighboorhood
 
 
     # line features are: 'std_type', 'length_km', 'r_ohm_per_km', 'x_ohm_per_km', 'c_nf_per_km','g_us_per_km'
@@ -80,7 +89,6 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     bus_features = data.x_dict.get("bus")[:, -2:]
 
     # (i, j, r_ij, x_ij)
-    i, j = [a[0] for a in bus_to_bus_dict], [a[1] for a in bus_to_bus_dict]
     r, x = torch.stack([line_features[a[2], 1]*line_features[a[2], 2] for a in bus_to_bus_dict]), torch.stack([line_features[a[2], 1]*line_features[a[2], 3] for a in bus_to_bus_dict])
 
     vm_i = out.get("bus")[i, 4]
@@ -104,6 +112,10 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     Qji = g_ij * (f_i * e_j - e_i * f_j) + b_ij * (-e_i * e_j + e_i ** 2 - f_i * f_j + f_i ** 2)
 
     #### predicted values for buses
+
+    Pi = torch.matmul(mask.float(), Pji)
+    Qi = torch.matmul(mask.float(), Qji)
+
     bus_generator = torch.zeros_like(bus_features)
     bus_ext = torch.zeros_like(bus_features)
 
@@ -122,9 +134,9 @@ def power_imbalance_loss(data, out, neighboorhood=None):
     bus_ext[bus_to_ext_index, :]  = data.sn_mva[0] * out.get("ext_grid")[ext_index, 2:4]
 
     bus_true = bus_features + bus_generator + bus_ext
-    Pji_true = bus_true[i, 0]
-    Qji_true = bus_true[i, 1]
+    Pi_true = bus_true[:, 0]
+    Qi_true = bus_true[:, 1]
 
     duration= time.time()- begin
-    return torch.cat([torch.abs(Pji - Pji_true).unsqueeze(1), torch.abs(Qji - Qji_true).unsqueeze(1)],
+    return torch.cat([mse_loss(Pi , Pi_true).unsqueeze(0), mse_loss(Qi , Qi_true).unsqueeze(0)],
                      dim=-1), neighboorhood, duration  # (num_edges, 2)
