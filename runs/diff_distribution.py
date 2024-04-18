@@ -104,7 +104,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
 
         with(open(pickle_file, "ab") as f):
             pickle.dump({"train_graphs": [e.to("cpu") for e in train_graphs], "train_networks": train_networks,
-                         "val_graphs": val_graphs,
+                         "val_graphs": [e.to("cpu") for e in val_graphs],
                          "valid_networks": valid_networks}, f)
 
     if build_db_only:
