@@ -365,7 +365,8 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
             loss += weight_node * loss_node.sum()
 
             if use_physical_loss and node == "bus":
-                physical_loss, neighboorhood, duration = power_imbalance_loss(data, out, neighboorhood)
+                physical_loss, neighboorhood, duration = power_imbalance_loss(data, out, neighboorhood,
+                                                                              ground_truth=False)
                 physical_losses.append(physical_loss)
                 physical_losses_duration.append(duration)
                 if use_physical_loss == 2:
